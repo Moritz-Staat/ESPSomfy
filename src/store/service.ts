@@ -1,4 +1,4 @@
-import { configureApi, getApi, login } from '@/api/index';
+import { configureApi, Credentials, getApi, login } from '@/api/index';
 import { hasFavorite, Shade, SomfyCommand } from '@/models/index';
 import { bindAppState, SomfySocket } from '@/socket/index';
 
@@ -10,10 +10,10 @@ let unbindAppState: (() => void) | null = null;
 
 // Verbindet die App mit einem Controller: API konfigurieren, Login (liefert auch
 // bei authType 0 einen Token), Hydration über /discovery, dann Socket starten.
-export async function connectToController(host: string): Promise<void> {
+export async function connectToController(host: string, credentials?: Credentials): Promise<void> {
   const { endpoints } = configureApi(`http://${host}:8081`);
   const { auth } = getApi();
-  await login(`http://${host}:8081`, auth);
+  await login(`http://${host}:8081`, auth, credentials);
   const discovery = await endpoints.getDiscovery();
   const store = useAppStore.getState();
   store.setHost(host);
