@@ -3,7 +3,10 @@ import { LoginResponse } from '@/models/index';
 import { KeyValueStore } from './storage';
 
 // Login-Payloads: {} bei authType None, {pin} bei PinEntry, {username, password} bei Password.
-export type Credentials = { pin: string } | { username: string; password: string } | {};
+export type Credentials =
+  | { pin: string }
+  | { username: string; password: string }
+  | Record<string, never>;
 
 const KEY_API_KEY = 'espsomfy.apiKey';
 const KEY_CREDENTIALS = 'espsomfy.credentials';
