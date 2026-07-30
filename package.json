@@ -42,6 +42,9 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "setupFiles": [
+      "./jest.setup.js"
+    ],
     "moduleNameMapper": {
       "^@/(api|socket|store|models|components|theme)/(.*)$": "<rootDir>/src/$1/$2"
     },
