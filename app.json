@@ -1,13 +1,19 @@
 {
   "expo": {
-    "name": "_app_tmp",
-    "slug": "_app_tmp",
+    "name": "ESPSomfy",
+    "slug": "espsomfy-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "espsomfy",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
+        "NSLocalNetworkUsageDescription": "Die App sucht deinen ESPSomfy-RTS-Controller im lokalen Netzwerk.",
+        "NSBonjourServices": ["_espsomfy_rts._tcp"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +22,12 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": ["expo-router", "expo-secure-store"]
   }
 }

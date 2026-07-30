@@ -1,6 +1,16 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
-  }
+    "strict": true,
+    "paths": {
+      "@/api/*": ["./src/api/*"],
+      "@/socket/*": ["./src/socket/*"],
+      "@/store/*": ["./src/store/*"],
+      "@/models/*": ["./src/models/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/theme/*": ["./src/theme/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules", "mock-server"]
 }
