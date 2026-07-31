@@ -6,7 +6,7 @@ import { PositionSlider } from '@/components/PositionSlider';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { sendShadeCommand, sendShadeTarget } from '@/store/service';
-import { colors, flat, radius, spacing, type } from '@/theme/index';
+import { cardStyleFor, colors, flat, radius, spacing, type } from '@/theme/index';
 
 export default function ShadeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -14,7 +14,7 @@ export default function ShadeDetail() {
 
   if (!shade) {
     return (
-      <View style={styles.container}>
+      <View style={styles.fallback}>
         <Stack.Screen options={{ title: 'Rollo' }} />
         <Text style={styles.empty}>Rollo nicht gefunden.</Text>
       </View>
@@ -27,24 +27,38 @@ export default function ShadeDetail() {
     shade.shadeType === ShadeType.drycontact || shade.shadeType === ShadeType.drycontact2;
   // tiltonly hat keine Fahrposition → Positions-Slider ausblenden.
   const showSlider = !isDry && shade.tiltType !== TiltType.tiltonly;
+  // Die Karte „öffnet sich" zum Screen: Flächenfarbe = Kartenfarbe des Rollos.
+  const card = cardStyleFor(shade.shadeId);
 
   const send = (command: Parameters<typeof sendShadeCommand>[1]) => {
     sendShadeCommand(shade.shadeId, command).catch(() => {});
   };
 
+  const buttonStyle = [styles.button, { backgroundColor: card.buttonBg }];
+  const buttonTextStyle = [styles.buttonText, { color: card.buttonFg }];
+
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: shade.name }} />
+    <View style={[styles.container, { backgroundColor: card.bg }]}>
+      <Stack.Screen
+        options={{
+          title: shade.name,
+          headerStyle: { backgroundColor: card.bg },
+          headerTintColor: card.fg,
+          headerTitleStyle: { color: card.fg },
+        }}
+      />
       <ConnectionBar />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.status}>
+        <Text style={[styles.status, { color: card.fg }]}>
           {moving
             ? shade.direction < 0
               ? 'öffnet…'
               : 'schließt…'
             : `Position: ${shade.position} %`}
         </Text>
-        {hasFavorite(shade.myPos) && <Text style={styles.meta}>Favorit: {shade.myPos} %</Text>}
+        {hasFavorite(shade.myPos) && (
+          <Text style={[styles.meta, { color: card.fg }]}>Favorit: {shade.myPos} %</Text>
+        )}
 
         {showSlider && (
           <PositionSlider
@@ -58,19 +72,19 @@ export default function ShadeDetail() {
 
         <View style={styles.buttons}>
           {isDry ? (
-            <Pressable style={styles.button} onPress={() => send('Toggle')}>
-              <Text style={styles.buttonText}>Schalten</Text>
+            <Pressable style={buttonStyle} onPress={() => send('Toggle')}>
+              <Text style={buttonTextStyle}>Schalten</Text>
             </Pressable>
           ) : (
             <>
-              <Pressable style={styles.button} onPress={() => send('Up')}>
-                <Text style={styles.buttonText}>Hoch</Text>
+              <Pressable style={buttonStyle} onPress={() => send('Up')}>
+                <Text style={buttonTextStyle}>Hoch</Text>
               </Pressable>
-              <Pressable style={styles.button} onPress={() => send('My')}>
-                <Text style={styles.buttonText}>{myLabel}</Text>
+              <Pressable style={buttonStyle} onPress={() => send('My')}>
+                <Text style={buttonTextStyle}>{myLabel}</Text>
               </Pressable>
-              <Pressable style={styles.button} onPress={() => send('Down')}>
-                <Text style={styles.buttonText}>Runter</Text>
+              <Pressable style={buttonStyle} onPress={() => send('Down')}>
+                <Text style={buttonTextStyle}>Runter</Text>
               </Pressable>
             </>
           )}
@@ -81,18 +95,18 @@ export default function ShadeDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
+  container: { flex: 1 },
+  fallback: { flex: 1, backgroundColor: colors.canvas },
   content: { alignItems: 'center', padding: spacing.xl },
-  status: { fontSize: 18, fontWeight: '600', color: colors.bodyStrong, marginBottom: spacing.xs },
-  meta: { fontSize: 13, color: colors.muted, marginBottom: spacing.m },
+  status: { fontSize: 18, fontWeight: '600', marginBottom: spacing.xs },
+  meta: { fontSize: 13, marginBottom: spacing.m },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxxl },
   buttons: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xl },
   button: {
     ...flat,
-    backgroundColor: colors.action,
     borderRadius: radius.md,
     paddingVertical: spacing.m,
     paddingHorizontal: spacing.xl,
   },
-  buttonText: { ...type.button, color: colors.onAction },
+  buttonText: type.button,
 });
