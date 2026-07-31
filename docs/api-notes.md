@@ -2,10 +2,12 @@
 
 Aufgenommen am 2026-07-31 gegen `192.168.178.99`.
 
+> **Hinweis:** Die Samples in `api-samples/` sind anonymisiert — `apiKey` (login.json), `ssid` (socket-frames.txt) und `serverId` (discovery.json) wurden durch Platzhalter ersetzt. Die Feldstruktur und alle Formate (64-Zeichen-Hex-Token, Frameformat) entsprechen unverändert den echten Geräteantworten.
+
 ## Gerät
 
 - **Firmware:** v2.4.6 (`latest` ebenfalls v2.4.6, kein Update offen)
-- **serverId:** 000000, Modell ESPSomfyRTS, Hostname ESPSomfyRTS, Verbindung: Wifi
+- **serverId:** 6-stellige Hex-Kennung (im Sample anonymisiert), Modell ESPSomfyRTS, Hostname ESPSomfyRTS, Verbindung: Wifi
 - **authType:** `0` (SecurityType.None) — wie erwartet
 - **permissions:** `0`
 - `POST /login` mit `{}` liefert wie erwartet `{"type":0,"apiKey":"...","msg":"Success","success":true}` — 64-Zeichen-Hex-Token auch ohne Sicherung
