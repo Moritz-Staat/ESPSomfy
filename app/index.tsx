@@ -123,7 +123,7 @@ export default function ConnectScreen() {
           />
         </>
       )}
-      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: colors.errorText }]}>{error}</Text>}
       <Pressable
         style={[styles.button, { backgroundColor: colors.action }, busy && styles.buttonDisabled]}
         onPress={connect}

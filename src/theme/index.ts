@@ -43,7 +43,10 @@ export interface ThemeColors {
   onAction: string;
   success: string;
   warning: string;
+  /** Semantikfläche (Statusleiste) — als Fließtext auf Canvas errorText nutzen. */
   error: string;
+  /** Fehlertext auf Canvas (error selbst hat auf hellem Creme nur 3.6:1). */
+  errorText: string;
 }
 
 export interface CardStyle {
@@ -91,6 +94,7 @@ const lightColors: ThemeColors = {
   success: '#22c55e',
   warning: '#f59e0b',
   error: '#ef4444',
+  errorText: '#b91c1c',
 };
 
 export const lightTheme: Theme = {
@@ -133,6 +137,7 @@ const darkColors: ThemeColors = {
   success: '#22c55e',
   warning: '#f59e0b',
   error: '#ef4444',
+  errorText: '#ef4444',
 };
 
 export const darkTheme: Theme = {
