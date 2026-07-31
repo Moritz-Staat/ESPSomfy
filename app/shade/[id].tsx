@@ -6,7 +6,7 @@ import { PositionSlider } from '@/components/PositionSlider';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { sendShadeCommand, sendShadeTarget } from '@/store/service';
-import { colors, spacing } from '@/theme/index';
+import { colors, flat, radius, spacing, type } from '@/theme/index';
 
 export default function ShadeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -81,17 +81,18 @@ export default function ShadeDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.canvas },
   content: { alignItems: 'center', padding: spacing.xl },
-  status: { fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: spacing.xs },
-  meta: { fontSize: 13, color: colors.textMuted, marginBottom: spacing.m },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl * 2 },
+  status: { fontSize: 18, fontWeight: '600', color: colors.bodyStrong, marginBottom: spacing.xs },
+  meta: { fontSize: 13, color: colors.muted, marginBottom: spacing.m },
+  empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxxl },
   buttons: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xl },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
+    ...flat,
+    backgroundColor: colors.action,
+    borderRadius: radius.md,
     paddingVertical: spacing.m,
     paddingHorizontal: spacing.xl,
   },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  buttonText: { ...type.button, color: colors.onAction },
 });

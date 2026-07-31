@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppStore } from '@/store/appStore';
-import { colors } from '@/theme/index';
+import { statusStyles } from '@/theme/index';
 
 const LABELS = {
   connecting: 'Verbinde…',
@@ -13,9 +13,10 @@ const LABELS = {
 // Schmale Statusleiste unter dem Header.
 export function ConnectionBar() {
   const status = useAppStore((s) => s.connectionStatus);
+  const { bg, fg } = statusStyles[status];
   return (
-    <View style={[styles.bar, { backgroundColor: colors[status] }]}>
-      <Text style={styles.text}>{LABELS[status]}</Text>
+    <View style={[styles.bar, { backgroundColor: bg }]}>
+      <Text style={[styles.text, { color: fg }]}>{LABELS[status]}</Text>
     </View>
   );
 }
@@ -26,7 +27,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    color: '#fff',
     fontSize: 11,
     fontWeight: '600',
   },

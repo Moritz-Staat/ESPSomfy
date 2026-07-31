@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme/index';
+import { brand, colors, flat, radius, spacing } from '@/theme/index';
 
 const TRACK_HEIGHT = 320;
 const THUMB_SIZE = 36;
@@ -70,12 +70,12 @@ export function PositionSlider({ value, onCommit }: Props) {
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center' },
-  label: { color: colors.textMuted, fontSize: 12, marginVertical: 8 },
+  label: { color: colors.muted, fontSize: 12, marginVertical: spacing.s },
   track: {
     height: TRACK_HEIGHT,
     width: 56,
-    borderRadius: 28,
-    backgroundColor: colors.border,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceStrong,
     overflow: 'hidden',
   },
   fill: {
@@ -83,18 +83,19 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.primary,
+    backgroundColor: brand.pink,
     opacity: 0.25,
   },
   thumb: {
+    ...flat,
     position: 'absolute',
     alignSelf: 'center',
     width: THUMB_SIZE,
     height: THUMB_SIZE,
-    borderRadius: THUMB_SIZE / 2,
-    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    backgroundColor: colors.action,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  thumbText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  thumbText: { color: colors.onAction, fontWeight: '700', fontSize: 12 },
 });

@@ -6,7 +6,7 @@ import { ConnectionBar } from '@/components/ConnectionBar';
 import { ShadeCard } from '@/components/ShadeCard';
 import { useAppStore } from '@/store/appStore';
 import { selectRoomSections } from '@/store/selectors';
-import { colors, spacing } from '@/theme/index';
+import { colors, spacing, type } from '@/theme/index';
 
 export default function Dashboard() {
   const shadesById = useAppStore((s) => s.shadesById);
@@ -40,15 +40,13 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.canvas },
   sectionHeader: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
+    ...type.label,
+    color: colors.muted,
     marginTop: spacing.l,
     marginBottom: spacing.xs,
     marginHorizontal: spacing.l,
   },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl * 2 },
+  empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxxl },
 });

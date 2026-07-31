@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { hasFavorite, isMoving, Shade, ShadeType, TiltType } from '@/models/index';
 import { sendShadeCommand } from '@/store/service';
-import { colors, spacing } from '@/theme/index';
+import { colors, flat, radius, spacing, type } from '@/theme/index';
 
 function isDryContact(shade: Shade): boolean {
   return shade.shadeType === ShadeType.drycontact || shade.shadeType === ShadeType.drycontact2;
@@ -68,26 +68,26 @@ export function ShadeCard({ shade }: { shade: Shade }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 10,
+    ...flat,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.lg,
     padding: spacing.l,
     marginHorizontal: spacing.l,
     marginVertical: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   info: { flex: 1 },
-  name: { fontSize: 16, fontWeight: '600', color: colors.text },
-  meta: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  movingText: { fontSize: 13, color: colors.moving, marginTop: 2, fontWeight: '600' },
+  name: { ...type.shadeName, color: colors.ink },
+  meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  movingText: { fontSize: 13, color: colors.body, marginTop: 2, fontWeight: '600' },
   buttons: { flexDirection: 'row', gap: spacing.s },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
+    ...flat,
+    backgroundColor: colors.action,
+    borderRadius: radius.md,
     paddingVertical: spacing.s,
     paddingHorizontal: spacing.m,
   },
-  buttonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  buttonText: { color: colors.onAction, fontWeight: '600', fontSize: 13 },
 });
