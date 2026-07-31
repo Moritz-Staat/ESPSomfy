@@ -67,7 +67,9 @@ export interface Theme {
   colors: ThemeColors;
   /** Rollo-Karten-Rotation; Index über shadeId % Länge (stabil bei Umsortierung). */
   cards: readonly CardStyle[];
-  status: Record<'connecting' | 'live' | 'polling' | 'offline', StatusStyle>;
+  // Nur Abweichungen vom Normalzustand. „live" trägt keine Information und
+  // bekommt deshalb keine Fläche — die Leiste bleibt dann ganz weg.
+  status: Record<'connecting' | 'polling' | 'offline', StatusStyle>;
 }
 
 const inkCard = (bg: string): CardStyle => ({
@@ -112,7 +114,6 @@ export const lightTheme: Theme = {
   // Ink auf den Semantikfarben — Weiß auf error wäre 3.15:1.
   status: {
     connecting: { bg: lightColors.surfaceStrong, fg: lightColors.body },
-    live: { bg: lightColors.success, fg: INK },
     polling: { bg: lightColors.warning, fg: INK },
     offline: { bg: lightColors.error, fg: INK },
   },
@@ -155,7 +156,6 @@ export const darkTheme: Theme = {
   ],
   status: {
     connecting: { bg: darkColors.surfaceStrong, fg: darkColors.body },
-    live: { bg: darkColors.success, fg: INK },
     polling: { bg: darkColors.warning, fg: INK },
     offline: { bg: darkColors.error, fg: INK },
   },
@@ -163,6 +163,25 @@ export const darkTheme: Theme = {
 
 export function cardStyleFor(theme: Theme, shadeId: number): CardStyle {
   return theme.cards[Math.abs(shadeId) % theme.cards.length];
+}
+
+// Detailansicht: Im Light Mode läuft der Screen vollflächig auf der Kartenfarbe.
+// Im Dark Mode wäre das ein Systembruch — die saturierte Fläche erschlägt den
+// warmen dunklen Canvas. Dort bleibt der Canvas stehen und die Rollo-Farbe wirkt
+// als Akzent (Grafik, Slider-Füllung, Überschrift, Buttons).
+export function detailStyleFor(theme: Theme, shadeId: number): CardStyle {
+  const card = cardStyleFor(theme, shadeId);
+  if (theme.mode === 'light') {
+    return card;
+  }
+  // Die zurückhaltende Dunkelkarte hebt sich als Akzent nicht ab — dort Creme.
+  const accent = card.bg === theme.colors.surfaceCard ? theme.colors.ink : card.bg;
+  return {
+    bg: theme.colors.canvas,
+    fg: accent,
+    buttonBg: accent,
+    buttonFg: theme.colors.onAction,
+  };
 }
 
 export const spacing = {

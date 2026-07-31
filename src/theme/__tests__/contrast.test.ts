@@ -1,4 +1,4 @@
-import { brand, darkTheme, lightTheme, Theme } from '@/theme/index';
+import { brand, darkTheme, detailStyleFor, lightTheme, Theme } from '@/theme/index';
 
 // WCAG 2.x: relative Luminanz und Kontrastverhältnis.
 function channel(v: number): number {
@@ -62,6 +62,18 @@ describe.each([
     for (const status of Object.values(theme.status)) {
       expect(contrastRatio(status.fg, status.bg)).toBeGreaterThanOrEqual(AA);
     }
+  });
+
+  // Detailansicht: light vollflächig auf der Kartenfarbe, dark auf Canvas mit
+  // der Rollo-Farbe als Akzent. Beides muss über alle sechs Rotationsplätze tragen.
+  test.each([0, 1, 2, 3, 4, 5])('Detailansicht Rollo %i: Text auf Fläche', (shadeId) => {
+    const detail = detailStyleFor(theme, shadeId);
+    expect(contrastRatio(detail.fg, detail.bg)).toBeGreaterThanOrEqual(AA);
+  });
+
+  test.each([0, 1, 2, 3, 4, 5])('Detailansicht Rollo %i: Button-Label', (shadeId) => {
+    const detail = detailStyleFor(theme, shadeId);
+    expect(contrastRatio(detail.buttonFg, detail.buttonBg)).toBeGreaterThanOrEqual(AA);
   });
 });
 

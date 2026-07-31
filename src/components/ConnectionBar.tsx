@@ -6,15 +6,18 @@ import { useTheme } from '@/theme/ThemeContext';
 
 const LABELS = {
   connecting: 'Verbinde…',
-  live: 'Live',
   polling: 'Abfrage alle 10 s (Socket getrennt)',
   offline: 'Offline',
 } as const;
 
-// Schmale Statusleiste unter dem Header.
+// Schmale Statusleiste unter dem Header — nur bei Abweichungen. Eine bestehende
+// Verbindung ist der Normalfall und braucht kein dauerhaftes Band.
 export function ConnectionBar() {
   const status = useAppStore((s) => s.connectionStatus);
   const theme = useTheme();
+  if (status === 'live') {
+    return null;
+  }
   const { bg, fg } = theme.status[status];
   return (
     <View style={[styles.bar, { backgroundColor: bg }]}>

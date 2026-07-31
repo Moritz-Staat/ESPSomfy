@@ -7,7 +7,7 @@ import { ShadeGraphic } from '@/components/ShadeGraphic';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { sendShadeCommand, sendShadeTarget } from '@/store/service';
-import { cardStyleFor, flat, font, radius, spacing, type } from '@/theme/index';
+import { detailStyleFor, flat, font, radius, spacing, type } from '@/theme/index';
 import { useTheme } from '@/theme/ThemeContext';
 
 export default function ShadeDetail() {
@@ -30,8 +30,9 @@ export default function ShadeDetail() {
     shade.shadeType === ShadeType.drycontact || shade.shadeType === ShadeType.drycontact2;
   // tiltonly hat keine Fahrposition → Positions-Slider ausblenden.
   const showSlider = !isDry && shade.tiltType !== TiltType.tiltonly;
-  // Die Karte „öffnet sich" zum Screen: Flächenfarbe = Kartenfarbe des Rollos.
-  const card = cardStyleFor(theme, shade.shadeId);
+  // Light: die Karte „öffnet sich" zum Screen (Fläche = Kartenfarbe).
+  // Dark: Canvas bleibt stehen, die Rollo-Farbe wirkt als Akzent.
+  const card = detailStyleFor(theme, shade.shadeId);
 
   const send = (command: Parameters<typeof sendShadeCommand>[1]) => {
     sendShadeCommand(shade.shadeId, command).catch(() => {});

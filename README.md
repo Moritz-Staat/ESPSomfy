@@ -6,7 +6,7 @@ Mobile-App (Android, React Native/Expo) für [ESPSomfy-RTS](https://github.com/r
 
 ## Screenshots
 
-Die App folgt dem Systemthema; Hell und Dunkel teilen sich dieselben Markenfarben.
+Die App folgt dem Systemthema; Hell und Dunkel teilen sich dieselben Markenfarben. Im hellen Modus füllt die Farbe des Rollos die Detailansicht, im dunklen bleibt sie Akzent auf dunklem Grund.
 
 | Dashboard (hell) | Dashboard (dunkel) |
 |---|---|
