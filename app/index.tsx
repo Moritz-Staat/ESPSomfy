@@ -65,8 +65,9 @@ export default function ConnectScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Stack.Screen options={{ title: 'Verbinden' }} />
+      <Stack.Screen options={{ title: 'Verbinden', headerShown: false }} />
       <Text style={styles.title}>ESPSomfy-RTS</Text>
+      <Text style={styles.subtitle}>Rollos steuern im lokalen Netzwerk</Text>
       <Text style={styles.label}>IP-Adresse des Controllers</Text>
       <TextInput
         style={styles.input}
@@ -76,6 +77,7 @@ export default function ConnectScreen() {
         autoCorrect={false}
         keyboardType="numbers-and-punctuation"
         placeholder="192.168.178.99"
+        placeholderTextColor={colors.muted}
       />
       {authType === SecurityType.PinEntry && (
         <>
@@ -130,7 +132,13 @@ const styles = StyleSheet.create({
     ...type.screenTitle,
     color: colors.ink,
     textAlign: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...type.positionValue,
+    color: colors.muted,
+    textAlign: 'center',
+    marginBottom: spacing.xxl,
   },
   label: { ...type.label, color: colors.muted, marginBottom: spacing.xs },
   input: {
