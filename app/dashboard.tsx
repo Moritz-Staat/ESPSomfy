@@ -33,7 +33,7 @@ export default function Dashboard() {
           <Text style={styles.sectionHeader}>{section.title}</Text>
         )}
         ListEmptyComponent={<Text style={styles.empty}>Keine Rollos gefunden.</Text>}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
       />
     </View>
   );
@@ -41,11 +41,12 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
+  // Raum-Überschrift 22/600/−0.3; 32 vor einem Raum, 12 bis zur ersten Karte.
   sectionHeader: {
-    ...type.label,
-    color: colors.muted,
-    marginTop: spacing.l,
-    marginBottom: spacing.xs,
+    ...type.roomHeader,
+    color: colors.ink,
+    marginTop: spacing.xxl,
+    marginBottom: spacing.m,
     marginHorizontal: spacing.l,
   },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxxl },
