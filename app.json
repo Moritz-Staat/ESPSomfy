@@ -9,13 +9,21 @@
     "scheme": "espsomfy",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "de.moritzstaat.espsomfy",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
         "NSLocalNetworkUsageDescription": "Die App sucht deinen ESPSomfy-RTS-Controller im lokalen Netzwerk.",
-        "NSBonjourServices": ["_espsomfy_rts._tcp"]
+        "NSBonjourServices": [
+          "_espsomfy_rts._tcp"
+        ]
       }
     },
     "android": {
+      "package": "de.moritzstaat.espsomfy",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,6 +36,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-secure-store"]
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5bda7ab7-31c6-43dd-b7b4-421acd380dc2"
+      }
+    }
   }
 }
