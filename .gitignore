@@ -33,6 +33,11 @@ yarn-error.*
 # local env files
 .env*.local
 
+# local tooling/notes (nicht veröffentlichen)
+CLAUDE.md
+AGENTS.md
+.claude/
+
 # typescript
 *.tsbuildinfo
 
