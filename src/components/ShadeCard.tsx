@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { hasFavorite, isMoving, Shade, ShadeType, TiltType } from '@/models/index';
 import { sendShadeCommand } from '@/store/service';
-import { cardStyleFor, flat, radius, spacing, type } from '@/theme/index';
+import { cardStyleFor, flat, font, radius, spacing, type } from '@/theme/index';
 
 function isDryContact(shade: Shade): boolean {
   return shade.shadeType === ShadeType.drycontact || shade.shadeType === ShadeType.drycontact2;
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   name: type.shadeName,
   meta: { ...type.positionValue, fontSize: 13, marginTop: 2 },
-  movingText: { fontSize: 13, marginTop: 2, fontWeight: '600' },
+  movingText: { fontFamily: font.semibold, fontSize: 13, marginTop: 2 },
   buttons: { flexDirection: 'row', gap: spacing.s },
   button: {
     ...flat,

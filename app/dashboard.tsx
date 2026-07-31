@@ -6,7 +6,7 @@ import { ConnectionBar } from '@/components/ConnectionBar';
 import { ShadeCard } from '@/components/ShadeCard';
 import { useAppStore } from '@/store/appStore';
 import { selectRoomSections } from '@/store/selectors';
-import { colors, spacing, type } from '@/theme/index';
+import { colors, font, spacing, type } from '@/theme/index';
 
 export default function Dashboard() {
   const shadesById = useAppStore((s) => s.shadesById);
@@ -49,5 +49,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.m,
     marginHorizontal: spacing.l,
   },
-  empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxxl },
+  empty: {
+    textAlign: 'center',
+    color: colors.muted,
+    fontFamily: font.regular,
+    marginTop: spacing.xxxl,
+  },
 });

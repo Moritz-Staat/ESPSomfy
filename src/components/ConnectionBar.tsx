@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppStore } from '@/store/appStore';
-import { statusStyles } from '@/theme/index';
+import { font, statusStyles } from '@/theme/index';
 
 const LABELS = {
   connecting: 'Verbinde…',
@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
+    fontFamily: font.semibold,
     fontSize: 11,
-    fontWeight: '600',
   },
 });

@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 
-import { brand, CardStyle, colors, flat, radius, spacing, type, withAlpha } from '@/theme/index';
+import {
+  brand,
+  CardStyle,
+  colors,
+  flat,
+  font,
+  radius,
+  spacing,
+  type,
+  withAlpha,
+} from '@/theme/index';
 
 const TRACK_HEIGHT = 320;
 const THUMB_SIZE = 36;
@@ -106,5 +116,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  thumbText: { color: colors.onAction, fontWeight: '700', fontSize: 12 },
+  thumbText: { color: colors.onAction, fontFamily: font.semibold, fontSize: 12 },
 });

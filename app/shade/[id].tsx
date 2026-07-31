@@ -6,7 +6,7 @@ import { PositionSlider } from '@/components/PositionSlider';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { sendShadeCommand, sendShadeTarget } from '@/store/service';
-import { cardStyleFor, colors, flat, radius, spacing, type } from '@/theme/index';
+import { cardStyleFor, colors, flat, font, radius, spacing, type } from '@/theme/index';
 
 export default function ShadeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -99,9 +99,14 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   fallback: { flex: 1, backgroundColor: colors.canvas },
   content: { alignItems: 'center', padding: spacing.xl },
-  status: { fontSize: 18, fontWeight: '600', marginBottom: spacing.xs },
-  meta: { fontSize: 13, marginBottom: spacing.m },
-  empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxxl },
+  status: { fontFamily: font.semibold, fontSize: 18, marginBottom: spacing.xs },
+  meta: { fontFamily: font.regular, fontSize: 13, marginBottom: spacing.m },
+  empty: {
+    textAlign: 'center',
+    color: colors.muted,
+    fontFamily: font.regular,
+    marginTop: spacing.xxxl,
+  },
   buttons: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xl },
   button: {
     ...flat,

@@ -129,14 +129,29 @@ export const radius = {
   pill: 9999,
 } as const;
 
-// Typografie-Rollen (Inter folgt mit eigenem Issue; Gewichte/Größen gelten schon).
+// Inter wird gebündelt über @expo-google-fonts/inter geladen (siehe app/_layout.tsx).
+// Auf Android trägt die Font-Datei das Gewicht — fontFamily statt fontWeight,
+// sonst synthetisiert das System ein zweites Bold darüber.
+export const font = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+} as const;
+
+// Typografie-Rollen. Ersatz für die lizenzgebundene Original-Schrift der Vorlage:
+// Inter mit negativem Letter-Spacing bei großen Größen.
 export const type = {
-  screenTitle: { fontSize: 32, fontWeight: '500', letterSpacing: -1 },
-  roomHeader: { fontSize: 22, fontWeight: '600', letterSpacing: -0.3 },
-  shadeName: { fontSize: 17, fontWeight: '600' },
-  positionValue: { fontSize: 15, fontWeight: '400' },
-  label: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' },
-  button: { fontSize: 15, fontWeight: '600' },
+  screenTitle: { fontFamily: font.medium, fontSize: 32, letterSpacing: -1 },
+  roomHeader: { fontFamily: font.semibold, fontSize: 22, letterSpacing: -0.3 },
+  shadeName: { fontFamily: font.semibold, fontSize: 17 },
+  positionValue: { fontFamily: font.regular, fontSize: 15 },
+  label: {
+    fontFamily: font.semibold,
+    fontSize: 12,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  button: { fontFamily: font.semibold, fontSize: 15 },
 } satisfies Record<string, TextStyle>;
 
 // Tiefe entsteht allein aus Farbkontrast. elevation/shadowOpacity explizit auf 0,

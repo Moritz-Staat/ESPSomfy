@@ -14,7 +14,7 @@ import { Credentials } from '@/api/auth';
 import { SecurityType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { connectToController } from '@/store/service';
-import { colors, flat, radius, spacing, type } from '@/theme/index';
+import { colors, flat, font, radius, spacing, type } from '@/theme/index';
 
 // Verbindungs-Screen: IP manuell eingeben, Test gegen /discovery.
 // mDNS kommt später. Bei authType != 0 werden PIN- bzw. Passwortfelder eingeblendet.
@@ -147,11 +147,12 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     borderRadius: radius.md,
     padding: spacing.m,
+    fontFamily: font.regular,
     fontSize: 16,
     marginBottom: spacing.l,
     color: colors.ink,
   },
-  error: { color: colors.error, marginBottom: spacing.l },
+  error: { color: colors.error, fontFamily: font.regular, marginBottom: spacing.l },
   button: {
     ...flat,
     backgroundColor: colors.action,
