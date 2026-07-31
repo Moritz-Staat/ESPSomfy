@@ -65,15 +65,30 @@ export const colors = lightColors;
 export interface CardStyle {
   bg: string;
   fg: string;
+  /** Buttons auf der Karte: ink mit Creme-Label — auf Teal invertiert. */
+  buttonBg: string;
+  buttonFg: string;
 }
 
+const inkCard = (bg: string): CardStyle => ({
+  bg,
+  fg: lightColors.ink,
+  buttonBg: lightColors.ink,
+  buttonFg: lightColors.onAction,
+});
+
 export const cardRotation: readonly CardStyle[] = [
-  { bg: brand.pink, fg: lightColors.ink },
-  { bg: brand.teal, fg: lightColors.onPrimary },
-  { bg: brand.lavender, fg: lightColors.ink },
-  { bg: brand.peach, fg: lightColors.ink },
-  { bg: brand.ochre, fg: lightColors.ink },
-  { bg: lightColors.surfaceCard, fg: lightColors.ink },
+  inkCard(brand.pink),
+  {
+    bg: brand.teal,
+    fg: lightColors.onPrimary,
+    buttonBg: lightColors.onAction,
+    buttonFg: lightColors.ink,
+  },
+  inkCard(brand.lavender),
+  inkCard(brand.peach),
+  inkCard(brand.ochre),
+  inkCard(lightColors.surfaceCard),
 ];
 
 export function cardStyleFor(shadeId: number): CardStyle {
