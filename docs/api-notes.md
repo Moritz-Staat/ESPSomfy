@@ -2,7 +2,7 @@
 
 Aufgenommen am 2026-07-31 gegen `192.168.178.99`.
 
-> **Hinweis:** Die Samples in `api-samples/` sind anonymisiert — `apiKey` (login.json), `ssid` (socket-frames.txt) und `serverId` (discovery.json) wurden durch Platzhalter ersetzt. Die Feldstruktur und alle Formate (64-Zeichen-Hex-Token, Frameformat) entsprechen unverändert den echten Geräteantworten.
+> **Hinweis:** Die Samples in `api-samples/` sind anonymisiert — `apiKey` (login.json), `ssid` (socket-frames.txt), `serverId` (discovery.json) sowie `startingAddress`, alle `remoteAddress`-Werte und `lastRollingCode` wurden durch Platzhalter ersetzt (Feldtypen unverändert). Die Feldstruktur und alle Formate (64-Zeichen-Hex-Token, Frameformat) entsprechen unverändert den echten Geräteantworten.
 
 ## Gerät
 
