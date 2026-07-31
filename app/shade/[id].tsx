@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ConnectionBar } from '@/components/ConnectionBar';
 import { PositionSlider } from '@/components/PositionSlider';
+import { ShadeGraphic } from '@/components/ShadeGraphic';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { sendShadeCommand, sendShadeTarget } from '@/store/service';
@@ -51,6 +52,11 @@ export default function ShadeDetail() {
       />
       <ConnectionBar />
       <ScrollView contentContainerStyle={styles.content}>
+        {showSlider && (
+          <View style={styles.graphic}>
+            <ShadeGraphic position={shade.position} on={card} />
+          </View>
+        )}
         <Text style={[styles.status, { color: card.fg }]}>
           {moving
             ? shade.direction < 0
@@ -101,6 +107,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   fallback: { flex: 1 },
   content: { alignItems: 'center', padding: spacing.xl },
+  graphic: { marginBottom: spacing.l },
   status: { fontFamily: font.semibold, fontSize: 18, marginBottom: spacing.xs },
   meta: { fontFamily: font.regular, fontSize: 13, marginBottom: spacing.m },
   empty: {
