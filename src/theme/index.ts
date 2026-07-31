@@ -142,3 +142,11 @@ export const type = {
 // Tiefe entsteht allein aus Farbkontrast. elevation/shadowOpacity explizit auf 0,
 // weil React Native auf Android sonst automatisch Schatten ergänzt.
 export const flat: ViewStyle = { elevation: 0, shadowOpacity: 0 };
+
+/** #rrggbb → rgba() — für Ton-in-Ton-Flächen (Slider-Track auf Farbkarten). */
+export function withAlpha(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}

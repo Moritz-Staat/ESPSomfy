@@ -63,6 +63,7 @@ export default function ShadeDetail() {
         {showSlider && (
           <PositionSlider
             value={shade.position}
+            on={card}
             // Nur beim Loslassen senden — kontinuierliches Senden flutet den ESP32.
             onCommit={(value) => {
               sendShadeTarget(shade.shadeId, value).catch(() => {});

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 
-import { brand, colors, flat, radius, spacing } from '@/theme/index';
+import { brand, CardStyle, colors, flat, radius, spacing, type, withAlpha } from '@/theme/index';
 
 const TRACK_HEIGHT = 320;
 const THUMB_SIZE = 36;
@@ -11,9 +11,12 @@ interface Props {
   value: number;
   // Wird NUR beim Loslassen aufgerufen — kontinuierliches Senden würde den ESP32 fluten.
   onCommit: (value: number) => void;
+  // Gesetzt, wenn der Slider auf einer Farbkarte liegt (Detailansicht):
+  // Track/Fill Ton-in-Ton aus der Textfarbe, Thumb wie die Karten-Buttons.
+  on?: CardStyle;
 }
 
-export function PositionSlider({ value, onCommit }: Props) {
+export function PositionSlider({ value, onCommit, on }: Props) {
   const [dragValue, setDragValue] = useState<number | null>(null);
   const startValue = useRef(0);
   // Refs, damit der einmalig erzeugte PanResponder aktuelle Props sieht.
@@ -54,23 +57,29 @@ export function PositionSlider({ value, onCommit }: Props) {
   const shown = dragValue ?? value;
   const top = ((TRACK_HEIGHT - THUMB_SIZE) * shown) / 100;
 
+  const labelStyle = [styles.label, on && { color: on.fg }];
+  const trackStyle = [styles.track, on && { backgroundColor: withAlpha(on.fg, 0.15) }];
+  const fillStyle = [styles.fill, on && { backgroundColor: on.fg }];
+  const thumbStyle = [styles.thumb, on && { backgroundColor: on.buttonBg }];
+  const thumbTextStyle = [styles.thumbText, on && { color: on.buttonFg }];
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>0 % — offen</Text>
-      <View style={styles.track} {...responder.panHandlers}>
-        <View style={[styles.fill, { height: top + THUMB_SIZE / 2 }]} />
-        <View style={[styles.thumb, { top }]}>
-          <Text style={styles.thumbText}>{shown}</Text>
+      <Text style={labelStyle}>0 % — offen</Text>
+      <View style={trackStyle} {...responder.panHandlers}>
+        <View style={[...fillStyle, { height: top + THUMB_SIZE / 2 }]} />
+        <View style={[...thumbStyle, { top }]}>
+          <Text style={thumbTextStyle}>{shown}</Text>
         </View>
       </View>
-      <Text style={styles.label}>100 % — geschlossen</Text>
+      <Text style={labelStyle}>100 % — geschlossen</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center' },
-  label: { color: colors.muted, fontSize: 12, marginVertical: spacing.s },
+  label: { ...type.label, color: colors.muted, marginVertical: spacing.s },
   track: {
     height: TRACK_HEIGHT,
     width: 56,
