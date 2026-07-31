@@ -6,17 +6,19 @@ import { PositionSlider } from '@/components/PositionSlider';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { sendShadeCommand, sendShadeTarget } from '@/store/service';
-import { cardStyleFor, colors, flat, font, radius, spacing, type } from '@/theme/index';
+import { cardStyleFor, flat, font, radius, spacing, type } from '@/theme/index';
+import { useTheme } from '@/theme/ThemeContext';
 
 export default function ShadeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const shade = useAppStore((s) => s.shadesById[Number(id)]);
+  const theme = useTheme();
 
   if (!shade) {
     return (
-      <View style={styles.fallback}>
+      <View style={[styles.fallback, { backgroundColor: theme.colors.canvas }]}>
         <Stack.Screen options={{ title: 'Rollo' }} />
-        <Text style={styles.empty}>Rollo nicht gefunden.</Text>
+        <Text style={[styles.empty, { color: theme.colors.muted }]}>Rollo nicht gefunden.</Text>
       </View>
     );
   }
@@ -28,7 +30,7 @@ export default function ShadeDetail() {
   // tiltonly hat keine Fahrposition → Positions-Slider ausblenden.
   const showSlider = !isDry && shade.tiltType !== TiltType.tiltonly;
   // Die Karte „öffnet sich" zum Screen: Flächenfarbe = Kartenfarbe des Rollos.
-  const card = cardStyleFor(shade.shadeId);
+  const card = cardStyleFor(theme, shade.shadeId);
 
   const send = (command: Parameters<typeof sendShadeCommand>[1]) => {
     sendShadeCommand(shade.shadeId, command).catch(() => {});
@@ -97,13 +99,12 @@ export default function ShadeDetail() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  fallback: { flex: 1, backgroundColor: colors.canvas },
+  fallback: { flex: 1 },
   content: { alignItems: 'center', padding: spacing.xl },
   status: { fontFamily: font.semibold, fontSize: 18, marginBottom: spacing.xs },
   meta: { fontFamily: font.regular, fontSize: 13, marginBottom: spacing.m },
   empty: {
     textAlign: 'center',
-    color: colors.muted,
     fontFamily: font.regular,
     marginTop: spacing.xxxl,
   },

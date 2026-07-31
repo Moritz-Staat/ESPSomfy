@@ -14,7 +14,8 @@ import { Credentials } from '@/api/auth';
 import { SecurityType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
 import { connectToController } from '@/store/service';
-import { colors, flat, font, radius, spacing, type } from '@/theme/index';
+import { flat, font, radius, spacing, type } from '@/theme/index';
+import { useTheme } from '@/theme/ThemeContext';
 
 // Verbindungs-Screen: IP manuell eingeben, Test gegen /discovery.
 // mDNS kommt später. Bei authType != 0 werden PIN- bzw. Passwortfelder eingeblendet.
@@ -60,17 +61,30 @@ export default function ConnectScreen() {
     }
   };
 
+  const { colors } = useTheme();
+  const labelStyle = [styles.label, { color: colors.muted }];
+  const inputStyle = [
+    styles.input,
+    {
+      backgroundColor: colors.surfaceSoft,
+      borderColor: colors.hairline,
+      color: colors.ink,
+    },
+  ];
+
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.canvas }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Stack.Screen options={{ title: 'Verbinden', headerShown: false }} />
-      <Text style={styles.title}>ESPSomfy-RTS</Text>
-      <Text style={styles.subtitle}>Rollos steuern im lokalen Netzwerk</Text>
-      <Text style={styles.label}>IP-Adresse des Controllers</Text>
+      <Text style={[styles.title, { color: colors.ink }]}>ESPSomfy-RTS</Text>
+      <Text style={[styles.subtitle, { color: colors.muted }]}>
+        Rollos steuern im lokalen Netzwerk
+      </Text>
+      <Text style={labelStyle}>IP-Adresse des Controllers</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         value={host}
         onChangeText={setHost}
         autoCapitalize="none"
@@ -81,9 +95,9 @@ export default function ConnectScreen() {
       />
       {authType === SecurityType.PinEntry && (
         <>
-          <Text style={styles.label}>PIN</Text>
+          <Text style={labelStyle}>PIN</Text>
           <TextInput
-            style={styles.input}
+            style={inputStyle}
             value={pin}
             onChangeText={setPin}
             secureTextEntry
@@ -93,28 +107,32 @@ export default function ConnectScreen() {
       )}
       {authType === SecurityType.Password && (
         <>
-          <Text style={styles.label}>Benutzername</Text>
+          <Text style={labelStyle}>Benutzername</Text>
           <TextInput
-            style={styles.input}
+            style={inputStyle}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
           />
-          <Text style={styles.label}>Passwort</Text>
+          <Text style={labelStyle}>Passwort</Text>
           <TextInput
-            style={styles.input}
+            style={inputStyle}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
         </>
       )}
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={connect} disabled={busy}>
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
+      <Pressable
+        style={[styles.button, { backgroundColor: colors.action }, busy && styles.buttonDisabled]}
+        onPress={connect}
+        disabled={busy}
+      >
         {busy ? (
           <ActivityIndicator color={colors.onAction} />
         ) : (
-          <Text style={styles.buttonText}>Verbinden</Text>
+          <Text style={[styles.buttonText, { color: colors.onAction }]}>Verbinden</Text>
         )}
       </Pressable>
     </KeyboardAvoidingView>
@@ -124,42 +142,35 @@ export default function ConnectScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
     padding: spacing.xl,
     justifyContent: 'center',
   },
   title: {
     ...type.screenTitle,
-    color: colors.ink,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
   subtitle: {
     ...type.positionValue,
-    color: colors.muted,
     textAlign: 'center',
     marginBottom: spacing.xxl,
   },
-  label: { ...type.label, color: colors.muted, marginBottom: spacing.xs },
+  label: { ...type.label, marginBottom: spacing.xs },
   input: {
-    backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
-    borderColor: colors.hairline,
     borderRadius: radius.md,
     padding: spacing.m,
     fontFamily: font.regular,
     fontSize: 16,
     marginBottom: spacing.l,
-    color: colors.ink,
   },
-  error: { color: colors.error, fontFamily: font.regular, marginBottom: spacing.l },
+  error: { fontFamily: font.regular, marginBottom: spacing.l },
   button: {
     ...flat,
-    backgroundColor: colors.action,
     borderRadius: radius.md,
     padding: spacing.l,
     alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { ...type.button, color: colors.onAction },
+  buttonText: type.button,
 });

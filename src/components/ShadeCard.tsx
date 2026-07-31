@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { hasFavorite, isMoving, Shade, ShadeType, TiltType } from '@/models/index';
 import { sendShadeCommand } from '@/store/service';
 import { cardStyleFor, flat, font, radius, spacing, type } from '@/theme/index';
+import { useTheme } from '@/theme/ThemeContext';
 
 function isDryContact(shade: Shade): boolean {
   return shade.shadeType === ShadeType.drycontact || shade.shadeType === ShadeType.drycontact2;
@@ -15,7 +16,8 @@ export function ShadeCard({ shade }: { shade: Shade }) {
   // „My" ist doppelt belegt: während der Fahrt Stopp, im Stillstand Fahrt zum Favoriten.
   const myLabel = moving ? 'Stopp' : hasFavorite(shade.myPos) ? 'Favorit' : 'My';
   // Kartenfarbe hängt an shadeId (stabil bei Umsortierung), nicht am Listenindex.
-  const card = cardStyleFor(shade.shadeId);
+  const theme = useTheme();
+  const card = cardStyleFor(theme, shade.shadeId);
 
   const send = (command: Parameters<typeof sendShadeCommand>[1]) => {
     sendShadeCommand(shade.shadeId, command).catch(() => {});

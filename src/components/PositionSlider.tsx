@@ -1,17 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 
-import {
-  brand,
-  CardStyle,
-  colors,
-  flat,
-  font,
-  radius,
-  spacing,
-  type,
-  withAlpha,
-} from '@/theme/index';
+import { brand, CardStyle, flat, font, radius, spacing, type, withAlpha } from '@/theme/index';
+import { useTheme } from '@/theme/ThemeContext';
 
 const TRACK_HEIGHT = 320;
 const THUMB_SIZE = 36;
@@ -67,11 +58,15 @@ export function PositionSlider({ value, onCommit, on }: Props) {
   const shown = dragValue ?? value;
   const top = ((TRACK_HEIGHT - THUMB_SIZE) * shown) / 100;
 
-  const labelStyle = [styles.label, on && { color: on.fg }];
-  const trackStyle = [styles.track, on && { backgroundColor: withAlpha(on.fg, 0.15) }];
-  const fillStyle = [styles.fill, on && { backgroundColor: on.fg }];
-  const thumbStyle = [styles.thumb, on && { backgroundColor: on.buttonBg }];
-  const thumbTextStyle = [styles.thumbText, on && { color: on.buttonFg }];
+  const { colors } = useTheme();
+  const labelStyle = [styles.label, { color: on ? on.fg : colors.muted }];
+  const trackStyle = [
+    styles.track,
+    { backgroundColor: on ? withAlpha(on.fg, 0.15) : colors.surfaceStrong },
+  ];
+  const fillStyle = [styles.fill, { backgroundColor: on ? on.fg : brand.pink }];
+  const thumbStyle = [styles.thumb, { backgroundColor: on ? on.buttonBg : colors.action }];
+  const thumbTextStyle = [styles.thumbText, { color: on ? on.buttonFg : colors.onAction }];
 
   return (
     <View style={styles.container}>
@@ -89,12 +84,11 @@ export function PositionSlider({ value, onCommit, on }: Props) {
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center' },
-  label: { ...type.label, color: colors.muted, marginVertical: spacing.s },
+  label: { ...type.label, marginVertical: spacing.s },
   track: {
     height: TRACK_HEIGHT,
     width: 56,
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceStrong,
     overflow: 'hidden',
   },
   fill: {
@@ -102,7 +96,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: brand.pink,
     opacity: 0.25,
   },
   thumb: {
@@ -112,9 +105,8 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: radius.pill,
-    backgroundColor: colors.action,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  thumbText: { color: colors.onAction, fontFamily: font.semibold, fontSize: 12 },
+  thumbText: { fontFamily: font.semibold, fontSize: 12 },
 });

@@ -3,7 +3,11 @@ import type { TextStyle, ViewStyle } from 'react-native';
 // Clay-Designsystem: warme Creme-Flächen, saturierte Farbkarten, keine Schatten.
 // Kontrastregel: dunkler Text (ink) auf allen Kartenfarben außer Teal (dort Weiß).
 // Weiß auf Pink (3.14:1) und Text auf Coral (2.80:1) sind verboten;
-// mutedSoft (2.70:1 auf Canvas) ist nur dekorativ, nie für lesbaren Text.
+// mutedSoft ist nur dekorativ, nie für lesbaren Text.
+//
+// Dark Mode ist eine Erweiterung, kein Ableitungsprodukt: Die Wärme bleibt.
+// Nur Canvas und Textfarben kippen, die Markenfarben bleiben unverändert —
+// das Creme wechselt vom Hintergrund zur Schriftfarbe.
 
 export const brand = {
   pink: '#ff4d8b',
@@ -12,9 +16,14 @@ export const brand = {
   peach: '#ffb084',
   ochre: '#e8b94a',
   mint: '#a4d4c5',
-  // Nie als Kartenfarbe mit Text (Weiß 2.80:1, ink knapp) — nur Akzent/Dekor.
+  // Nie als Kartenfarbe mit Text (Weiß 2.80:1) — nur Akzent/Dekor.
   coral: '#ff6b5a',
 } as const;
+
+// Feste Anker unabhängig vom Modus: Text auf Markenkarten ist immer ink,
+// Karten-Buttons sind immer ink mit Creme-Label (auf Teal invertiert).
+const INK = '#0a0a0a';
+const CREAM = '#fffaf0';
 
 export interface ThemeColors {
   canvas: string;
@@ -26,10 +35,10 @@ export interface ThemeColors {
   bodyStrong: string;
   body: string;
   muted: string;
-  /** Nur dekorativ — nie für lesbaren Text (2.70:1 auf Canvas). */
+  /** Nur dekorativ — nie für lesbaren Text. */
   mutedSoft: string;
   onPrimary: string;
-  /** Primäre Aktionen (Buttons): ink auf Creme-Label, 19:1. */
+  /** Primäre Aktionen (Buttons) auf Canvas. */
   action: string;
   onAction: string;
   success: string;
@@ -37,7 +46,35 @@ export interface ThemeColors {
   error: string;
 }
 
-export const lightColors: ThemeColors = {
+export interface CardStyle {
+  bg: string;
+  fg: string;
+  /** Buttons auf der Karte. */
+  buttonBg: string;
+  buttonFg: string;
+}
+
+export interface StatusStyle {
+  bg: string;
+  fg: string;
+}
+
+export interface Theme {
+  mode: 'light' | 'dark';
+  colors: ThemeColors;
+  /** Rollo-Karten-Rotation; Index über shadeId % Länge (stabil bei Umsortierung). */
+  cards: readonly CardStyle[];
+  status: Record<'connecting' | 'live' | 'polling' | 'offline', StatusStyle>;
+}
+
+const inkCard = (bg: string): CardStyle => ({
+  bg,
+  fg: INK,
+  buttonBg: INK,
+  buttonFg: CREAM,
+});
+
+const lightColors: ThemeColors = {
   canvas: '#fffaf0',
   surfaceSoft: '#faf5e8',
   surfaceCard: '#f5f0e0',
@@ -56,56 +93,72 @@ export const lightColors: ThemeColors = {
   error: '#ef4444',
 };
 
-/** Aktive Farbfläche der App — wird mit dem Dark Mode themenbewusst. */
-export const colors = lightColors;
-
-// Rollo-Karten: Rotation pink → teal → lavender → peach → ochre → creme.
-// Die Farbe hängt an shadeId % 6 (nicht am Listenindex), damit sie bei
-// Umsortierung stabil bleibt.
-export interface CardStyle {
-  bg: string;
-  fg: string;
-  /** Buttons auf der Karte: ink mit Creme-Label — auf Teal invertiert. */
-  buttonBg: string;
-  buttonFg: string;
-}
-
-const inkCard = (bg: string): CardStyle => ({
-  bg,
-  fg: lightColors.ink,
-  buttonBg: lightColors.ink,
-  buttonFg: lightColors.onAction,
-});
-
-export const cardRotation: readonly CardStyle[] = [
-  inkCard(brand.pink),
-  {
-    bg: brand.teal,
-    fg: lightColors.onPrimary,
-    buttonBg: lightColors.onAction,
-    buttonFg: lightColors.ink,
+export const lightTheme: Theme = {
+  mode: 'light',
+  colors: lightColors,
+  // Rotation pink → teal → lavender → peach → ochre → creme.
+  cards: [
+    inkCard(brand.pink),
+    { bg: brand.teal, fg: '#ffffff', buttonBg: CREAM, buttonFg: INK },
+    inkCard(brand.lavender),
+    inkCard(brand.peach),
+    inkCard(brand.ochre),
+    inkCard(lightColors.surfaceCard),
+  ],
+  // Ink auf den Semantikfarben — Weiß auf error wäre 3.15:1.
+  status: {
+    connecting: { bg: lightColors.surfaceStrong, fg: lightColors.body },
+    live: { bg: lightColors.success, fg: INK },
+    polling: { bg: lightColors.warning, fg: INK },
+    offline: { bg: lightColors.error, fg: INK },
   },
-  inkCard(brand.lavender),
-  inkCard(brand.peach),
-  inkCard(brand.ochre),
-  inkCard(lightColors.surfaceCard),
-];
-
-export function cardStyleFor(shadeId: number): CardStyle {
-  return cardRotation[Math.abs(shadeId) % cardRotation.length];
-}
-
-// Verbindungsstatus → Flächen mit kontrastkonformem Text (ink auf Semantikfarben,
-// Weiß auf error wäre 3.15:1).
-export const statusStyles: Record<
-  'connecting' | 'live' | 'polling' | 'offline',
-  { bg: string; fg: string }
-> = {
-  connecting: { bg: lightColors.surfaceStrong, fg: lightColors.body },
-  live: { bg: lightColors.success, fg: lightColors.ink },
-  polling: { bg: lightColors.warning, fg: lightColors.ink },
-  offline: { bg: lightColors.error, fg: lightColors.ink },
 };
+
+// Ankerflächen aus der Vorlage: surface-dark und surface-dark-elevated,
+// befördert zu Canvas und zurückhaltender Karte. Kein kaltgraues #121212.
+const darkColors: ThemeColors = {
+  canvas: '#0a1a1a',
+  surfaceSoft: '#1a2a2a',
+  surfaceCard: '#1a2a2a',
+  surfaceStrong: '#243434',
+  hairline: '#2a3a3a',
+  ink: '#fffaf0',
+  bodyStrong: '#ede7d9',
+  body: '#d8d2c4',
+  muted: '#9aa5a0',
+  mutedSoft: '#828d88',
+  onPrimary: '#ffffff',
+  action: '#fffaf0',
+  onAction: '#0a1a1a',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  error: '#ef4444',
+};
+
+export const darkTheme: Theme = {
+  mode: 'dark',
+  colors: darkColors,
+  // Teal (1.45:1 gegen den dunklen Canvas) verschwindet — Mint übernimmt den Platz.
+  // Rotation pink → mint → lavender → peach → ochre → Dunkelkarte.
+  cards: [
+    inkCard(brand.pink),
+    inkCard(brand.mint),
+    inkCard(brand.lavender),
+    inkCard(brand.peach),
+    inkCard(brand.ochre),
+    { bg: darkColors.surfaceCard, fg: CREAM, buttonBg: CREAM, buttonFg: '#0a1a1a' },
+  ],
+  status: {
+    connecting: { bg: darkColors.surfaceStrong, fg: darkColors.body },
+    live: { bg: darkColors.success, fg: INK },
+    polling: { bg: darkColors.warning, fg: INK },
+    offline: { bg: darkColors.error, fg: INK },
+  },
+};
+
+export function cardStyleFor(theme: Theme, shadeId: number): CardStyle {
+  return theme.cards[Math.abs(shadeId) % theme.cards.length];
+}
 
 export const spacing = {
   xs: 4,
