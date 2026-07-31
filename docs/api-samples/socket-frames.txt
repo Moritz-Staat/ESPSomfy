@@ -1,0 +1,9 @@
+[+0.3s] <<OPEN>>
+[+0.3s] Connected
+[+0.3s] 42[shadeState,{"shadeId":1,"type":0,"remoteAddress":100001,"name":"Wohnzimmer","direction":0,"position":0,"target":0,"myPos":-1,"tiltType":0,"flipCommands":false,"flipPosition":false,"flags":0,"sunSensor":false,"light":false,"sortOrder":3}]
+[+0.3s] 42[shadeState,{"shadeId":2,"type":0,"remoteAddress":100002,"name":"schlafzimmer","direction":0,"position":0,"target":0,"myPos":-1,"tiltType":0,"flipCommands":false,"flipPosition":false,"flags":0,"sunSensor":false,"light":false,"sortOrder":2}]
+[+0.3s] 42[fwStatus,{"available":false,"status":0,"error":0,"cancelled":false,"checkForUpdate":true,"inetAvailable":true,"fwVersion":{"name":"v2.4.6","major":2,"minor":4,"build":6,"suffix":""},"appVersion":{"name":"2.4.6","major":2,"minor":4,"build":6,"suffix":""},"latest":{"name":"v2.4.6","major":2,"minor":4,"build":6,"suffix":""}}]
+[+0.3s] 42[wifiStrength,{"ssid":"<REDACTED>","strength":-34,"channel":1}]
+[+0.3s] 42[memStatus,{"max":102388,"free":142380,"min":106708,"total":259620}]
+[+1.7s] 42[wifiStrength,{"ssid":"<REDACTED>","strength":-34,"channel":1}]
+[+2.9s] 42[wifiStrength,{"ssid":"<REDACTED>","strength":-34,"channel":1}]
