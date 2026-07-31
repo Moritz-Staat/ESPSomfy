@@ -4,6 +4,18 @@ Mobile-App (Android, React Native/Expo) für [ESPSomfy-RTS](https://github.com/r
 
 > **Hinweis:** Dies ist ein unabhängiges Client-Projekt. Es steht in keiner Verbindung zu [rstrouse/ESPSomfy-RTS](https://github.com/rstrouse/ESPSomfy-RTS) oder der Somfy SA. „Somfy" und „RTS" sind Marken der Somfy SA. An der Firmware wird nichts geändert — die App ist ein reiner Client.
 
+## Screenshots
+
+Die App folgt dem Systemthema; Hell und Dunkel teilen sich dieselben Markenfarben.
+
+| Dashboard (hell) | Dashboard (dunkel) |
+|---|---|
+| <img src="docs/screenshots/dashboard-light.png" width="260" alt="Dashboard mit Rollos nach Räumen gruppiert, helles Thema"> | <img src="docs/screenshots/dashboard-dark.png" width="260" alt="Dashboard mit Rollos nach Räumen gruppiert, dunkles Thema"> |
+
+| Detailansicht (hell) | Detailansicht (dunkel) | Verbinden |
+|---|---|---|
+| <img src="docs/screenshots/detail-light.png" width="200" alt="Detailansicht mit Positions-Slider, helles Thema"> | <img src="docs/screenshots/detail-dark.png" width="200" alt="Detailansicht mit Positions-Slider, dunkles Thema"> | <img src="docs/screenshots/connect-light.png" width="200" alt="Verbindungs-Screen mit Eingabe der Controller-IP"> |
+
 ## Funktionen
 
 - Verbindung zum Controller per IP-Adresse, Login für alle drei Sicherheitsmodi der Firmware (keine Sicherung, PIN, Benutzer/Passwort)
@@ -12,6 +24,7 @@ Mobile-App (Android, React Native/Expo) für [ESPSomfy-RTS](https://github.com/r
 - Positions-Slider für prozentgenaues Anfahren
 - Live-Statusaktualisierung per WebSocket — auch wenn parallel die physische Fernbedienung benutzt wird
 - Automatischer Reconnect mit Backoff, Polling-Fallback, Socket wird im App-Hintergrund geschlossen (Firmware erlaubt max. 5 Socket-Clients)
+- Heller und dunkler Modus, folgt der Systemeinstellung oder wird fest gewählt
 
 **Bewusst nicht in der App:** Pairing, Fernbedienungs-Verwaltung, Repeater, Radio-/Frequenzeinstellungen, Firmware-Updates, Netzwerkkonfiguration. Ein falscher Rolling Code oder eine falsche Frequenz trennt die Motoren — solche Eingriffe gehören ins Web-UI der Firmware.
 
