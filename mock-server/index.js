@@ -38,7 +38,35 @@ let mode = process.env.MOCK_MODE || 'normal';
 
 // Veränderlicher Zustand: tiefe Kopie der echten Rollos.
 const shades = JSON.parse(JSON.stringify(samples.shades));
+
+// Am echten Gerät hängen nur Rollos ohne Lamellen (tiltType 0). Damit sich die
+// Tilt-Steuerung überhaupt prüfen lässt, kommen zwei erfundene Rollos dazu:
+// eines mit beiden Achsen (integrated) und eines, das nur Lamellen hat (tiltonly).
+function tiltShade(shadeId, name, tiltType, shadeType) {
+  const base = JSON.parse(JSON.stringify(shades[0]));
+  return {
+    ...base,
+    shadeId,
+    name,
+    shadeType,
+    tiltType,
+    remoteAddress: 571000 + shadeId,
+    position: tiltType === 3 ? 0 : 40,
+    target: tiltType === 3 ? 0 : 40,
+    direction: 0,
+    myPos: -1,
+    tiltDirection: 0,
+    tiltPosition: 30,
+    tiltTarget: 30,
+    myTiltPos: -1,
+    sortOrder: shadeId - 1,
+  };
+}
+shades.push(tiltShade(3, 'Jalousie Büro', 2, 1));
+shades.push(tiltShade(4, 'Raffstore Bad', 3, 1));
+
 const moveTimers = new Map();
+const tiltTimers = new Map();
 
 function getShade(shadeId) {
   return shades.find((s) => s.shadeId === Number(shadeId));
@@ -146,7 +174,64 @@ function stopMove(shade) {
   broadcast('shadeState', shadeStateBody(shade));
 }
 
+// Tilt ist eine eigene Achse mit eigenen Timern — sonst würde eine Lamellenfahrt
+// eine laufende Rollofahrt abwürgen.
+function startTiltMove(shade, target) {
+  target = Math.max(0, Math.min(100, Math.round(target)));
+  clearInterval(tiltTimers.get(shade.shadeId));
+  shade.tiltTarget = target;
+  shade.tiltDirection = Math.sign(target - shade.tiltPosition);
+  broadcast('shadeState', shadeStateBody(shade));
+  if (shade.tiltDirection === 0) return;
+  // Lamellen laufen schneller als der Behang.
+  const timer = setInterval(() => {
+    const next = shade.tiltPosition + 10 * shade.tiltDirection;
+    const done =
+      (shade.tiltDirection > 0 && next >= shade.tiltTarget) ||
+      (shade.tiltDirection < 0 && next <= shade.tiltTarget);
+    if (done) {
+      shade.tiltPosition = shade.tiltTarget;
+      shade.tiltDirection = 0;
+      clearInterval(timer);
+      tiltTimers.delete(shade.shadeId);
+    } else {
+      shade.tiltPosition = next;
+    }
+    broadcast('shadeState', shadeStateBody(shade));
+  }, 400);
+  tiltTimers.set(shade.shadeId, timer);
+}
+
+function stopTiltMove(shade) {
+  clearInterval(tiltTimers.get(shade.shadeId));
+  tiltTimers.delete(shade.shadeId);
+  shade.tiltDirection = 0;
+  shade.tiltTarget = shade.tiltPosition;
+  broadcast('shadeState', shadeStateBody(shade));
+}
+
+function handleTiltCommand(shade, body) {
+  // Wie die Firmware: command hat Vorrang, target wird dann nicht mehr gelesen.
+  if (body.command === undefined && body.target !== undefined) {
+    startTiltMove(shade, Number(body.target));
+    return;
+  }
+  const cmd = String(body.command || 'My').toLowerCase();
+  if (cmd === 'up') startTiltMove(shade, 0);
+  else if (cmd === 'down') startTiltMove(shade, 100);
+  else if (cmd === 'my') {
+    if (shade.tiltDirection !== 0) stopTiltMove(shade);
+    else if (shade.myTiltPos >= 0 && shade.myTiltPos <= 100) startTiltMove(shade, shade.myTiltPos);
+  } else if (cmd === 'stop') stopTiltMove(shade);
+}
+
 function handleCommand(shade, body) {
+  // tiltonly hat keine Fahrposition: die Firmware lenkt Up/Down/My dort intern
+  // auf die Lamellenachse um (Somfy.cpp, sendCommand).
+  if (shade.tiltType === 3) {
+    handleTiltCommand(shade, body);
+    return;
+  }
   if (body.target !== undefined) {
     startMove(shade, Number(body.target));
     return;
@@ -217,6 +302,14 @@ const server = http.createServer((req, res) => {
         handleCommand(shade, body);
         return json(res, 200, shade);
       }
+      case '/tiltCommand': {
+        const shade = getShade(body.shadeId);
+        if (!shade) {
+          return json(res, 500, { status: 'ERROR', desc: 'Shade with the specified id not found.' });
+        }
+        handleTiltCommand(shade, body);
+        return json(res, 200, shade);
+      }
       case '/shade': {
         const shade = getShade(body.shadeId);
         if (!shade) {
@@ -237,4 +330,4 @@ server.listen(HTTP_PORT, () => {
   console.log(`Modus wechseln: curl -X PUT http://localhost:${HTTP_PORT}/_mock/mode -d '{"mode":"error500"}'`);
 });
 
-module.exports = { server, wss, shades, startMove };
+module.exports = { server, wss, shades, startMove, startTiltMove };

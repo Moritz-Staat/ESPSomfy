@@ -1,13 +1,15 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ConnectionBar } from '@/components/ConnectionBar';
 import { PositionSlider } from '@/components/PositionSlider';
 import { ShadeGraphic } from '@/components/ShadeGraphic';
+import { TiltControl } from '@/components/TiltControl';
+import { Button } from '@/components/ui/index';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
-import { sendShadeCommand, sendShadeTarget } from '@/store/service';
-import { detailStyleFor, flat, font, radius, spacing, type } from '@/theme/index';
+import { sendShadeCommand, sendShadeTarget, sendTiltTarget } from '@/store/service';
+import { detailStyleFor, font, spacing } from '@/theme/index';
 import { useTheme } from '@/theme/ThemeContext';
 
 export default function ShadeDetail() {
@@ -30,6 +32,10 @@ export default function ShadeDetail() {
     shade.shadeType === ShadeType.drycontact || shade.shadeType === ShadeType.drycontact2;
   // tiltonly hat keine Fahrposition → Positions-Slider ausblenden.
   const showSlider = !isDry && shade.tiltType !== TiltType.tiltonly;
+  // Die Tilt-Felder liefert die Firmware nur, wenn das Rollo eine Lamellenachse hat.
+  // tiltmotor (eigener Motor), integrated und euromode bekommen beide Achsen;
+  // bei tiltonly bleibt die Lamellenachse als einzige übrig.
+  const showTilt = !isDry && shade.tiltType !== TiltType.none && shade.tiltPosition !== undefined;
   // Light: die Karte „öffnet sich" zum Screen (Fläche = Kartenfarbe).
   // Dark: Canvas bleibt stehen, die Rollo-Farbe wirkt als Akzent.
   const card = detailStyleFor(theme, shade.shadeId);
@@ -37,9 +43,6 @@ export default function ShadeDetail() {
   const send = (command: Parameters<typeof sendShadeCommand>[1]) => {
     sendShadeCommand(shade.shadeId, command).catch(() => {});
   };
-
-  const buttonStyle = [styles.button, { backgroundColor: card.buttonBg }];
-  const buttonTextStyle = [styles.buttonText, { color: card.buttonFg }];
 
   return (
     <View style={[styles.container, { backgroundColor: card.bg }]}>
@@ -68,6 +71,11 @@ export default function ShadeDetail() {
         {hasFavorite(shade.myPos) && (
           <Text style={[styles.meta, { color: card.fg }]}>Favorit: {shade.myPos} %</Text>
         )}
+        {showTilt && hasFavorite(shade.myTiltPos) && (
+          <Text style={[styles.meta, { color: card.fg }]}>
+            Lamellen-Favorit: {shade.myTiltPos} %
+          </Text>
+        )}
 
         {showSlider && (
           <PositionSlider
@@ -80,22 +88,26 @@ export default function ShadeDetail() {
           />
         )}
 
+        {showTilt && (
+          <TiltControl
+            value={shade.tiltPosition ?? 0}
+            on={card}
+            onCommit={(value) => {
+              sendTiltTarget(shade.shadeId, value).catch(() => {});
+            }}
+          />
+        )}
+
         <View style={styles.buttons}>
           {isDry ? (
-            <Pressable style={buttonStyle} onPress={() => send('Toggle')}>
-              <Text style={buttonTextStyle}>Schalten</Text>
-            </Pressable>
+            <Button label="Schalten" card={card} onPress={() => send('Toggle')} />
           ) : (
             <>
-              <Pressable style={buttonStyle} onPress={() => send('Up')}>
-                <Text style={buttonTextStyle}>Hoch</Text>
-              </Pressable>
-              <Pressable style={buttonStyle} onPress={() => send('My')}>
-                <Text style={buttonTextStyle}>{myLabel}</Text>
-              </Pressable>
-              <Pressable style={buttonStyle} onPress={() => send('Down')}>
-                <Text style={buttonTextStyle}>Runter</Text>
-              </Pressable>
+              {/* Bei tiltonly steuern diese Befehle die Lamellen: die Firmware
+                  lenkt Up/Down/My dort intern auf das Tilt-Ziel um. */}
+              <Button label="Hoch" card={card} onPress={() => send('Up')} />
+              <Button label={myLabel} card={card} onPress={() => send('My')} />
+              <Button label="Runter" card={card} onPress={() => send('Down')} />
             </>
           )}
         </View>
@@ -117,11 +129,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxxl,
   },
   buttons: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xl },
-  button: {
-    ...flat,
-    borderRadius: radius.md,
-    paddingVertical: spacing.m,
-    paddingHorizontal: spacing.xl,
-  },
-  buttonText: type.button,
 });
