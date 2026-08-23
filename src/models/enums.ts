@@ -86,4 +86,7 @@ export const LIMITS = {
   maxRooms: 16,
   maxGroupedShades: 32,
   maxLinkedRemotes: 7,
+  // char name[21] in Somfy.h — 20 Zeichen plus Nullterminator, fuer Rollos,
+  // Raeume und Gruppen gleichermassen.
+  maxNameLength: 20,
 } as const;
