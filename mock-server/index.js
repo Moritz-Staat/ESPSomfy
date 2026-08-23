@@ -70,11 +70,29 @@ function tiltShade(shadeId, name, tiltType, shadeType) {
 shades.push(tiltShade(3, 'Jalousie Büro', 2, 1));
 shades.push(tiltShade(4, 'Raffstore Bad', 3, 1));
 
+// Am echten Gerät sind keine Gruppen angelegt. Eine erfundene Gruppe macht die
+// Gruppensteuerung pruefbar; flags ist wie in der Firmware das OR der Mitglieder.
+const groups = JSON.parse(JSON.stringify(samples.groups));
+if (groups.length === 0) {
+  groups.push({
+    groupId: 1,
+    remoteAddress: 580001,
+    name: 'Erdgeschoss',
+    sunSensor: false,
+    shades: [1, 2],
+    flags: 0,
+  });
+}
+
 const moveTimers = new Map();
 const tiltTimers = new Map();
 
 function getShade(shadeId) {
   return shades.find((s) => s.shadeId === Number(shadeId));
+}
+
+function getGroup(groupId) {
+  return groups.find((g) => g.groupId === Number(groupId));
 }
 
 // Socket-Format von SomfyShade::emitState: Feld heißt `type` (nicht shadeType),
@@ -259,7 +277,7 @@ function json(res, status, payload) {
 }
 
 function currentDiscovery() {
-  return { ...samples.discovery, shades, rooms: samples.rooms, groups: samples.groups };
+  return { ...samples.discovery, shades, rooms: samples.rooms, groups };
 }
 
 // Favoritenposition wie SomfyShade::setMyPosition: derselbe Aufruf setzt, loescht
@@ -300,7 +318,21 @@ function handleApiRoute(url, body, res) {
     case '/rooms':
       return json(res, 200, samples.rooms);
     case '/groups':
-      return json(res, 200, samples.groups);
+      return json(res, 200, groups);
+    case '/groupCommand': {
+      const group = getGroup(body.groupId);
+      if (!group) {
+        return json(res, 500, { status: 'ERROR', desc: 'Group with the specified id not found.' });
+      }
+      // Ein Funkbefehl erreicht alle Motoren zugleich; die Firmware schaetzt danach
+      // die Einzelpositionen, deren shadeState-Events nacheinander eintreffen.
+      // Die Antwort traegt die Gruppe, KEINE Gruppenposition.
+      for (const shadeId of group.shades) {
+        const shade = getShade(shadeId);
+        if (shade) handleCommand(shade, body);
+      }
+      return json(res, 200, group);
+    }
     case '/controller':
       return json(res, 200, { ...samples.controller, shades });
     case '/login':

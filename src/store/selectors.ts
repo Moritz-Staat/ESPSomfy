@@ -1,4 +1,4 @@
-import { Room, Shade } from '@/models/index';
+import { Group, isMoving, Room, Shade } from '@/models/index';
 
 import { AppState } from './appStore';
 
@@ -49,4 +49,40 @@ export function selectRoomSections(state: Pick<AppState, 'shadesById' | 'roomsBy
     });
   }
   return sections;
+}
+
+export interface GroupSummary {
+  group: Group;
+  members: Shade[];
+  /** Gemeinsame Position aller Mitglieder, oder null bei uneinheitlichem Stand. */
+  position: number | null;
+  /** Mindestens ein Mitglied fährt gerade. */
+  moving: boolean;
+}
+
+// Gruppen tragen selbst keine Position — die Firmware schätzt nur die Positionen
+// der einzelnen Rollos. Der angezeigte Zustand wird deshalb aus den Mitgliedern
+// abgeleitet; sind sie uneinheitlich, wird das als „gemischt" gezeigt, statt eine
+// Zahl zu behaupten, die keinem Rollo entspricht.
+export function selectGroupSummaries(
+  state: Pick<AppState, 'groupsById' | 'shadesById'>
+): GroupSummary[] {
+  const groups = Object.values(state.groupsById) as Group[];
+  return groups
+    .map((group) => {
+      // group.shades trägt die Mitglieds-Ids; unbekannte Ids werden übersprungen,
+      // damit eine noch nicht nachgeladene Gruppe die Liste nicht sprengt.
+      const members = group.shades
+        .map((shadeId) => state.shadesById[shadeId])
+        .filter((shade): shade is Shade => shade !== undefined)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      const positions = new Set(members.map((shade) => shade.position));
+      return {
+        group,
+        members,
+        position: positions.size === 1 ? [...positions][0] : null,
+        moving: members.some(isMoving),
+      };
+    })
+    .sort((a, b) => a.group.groupId - b.group.groupId);
 }
