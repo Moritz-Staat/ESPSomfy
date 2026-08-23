@@ -75,6 +75,23 @@ export async function sendShadeTarget(shadeId: number, target: number): Promise<
   await getApi().endpoints.shadeCommand({ shadeId, target });
 }
 
+// Programmiert den Favoriten im Motor. Der Aufruf hat drei mögliche Wirkungen,
+// abhängig davon, wo das Rollo gerade steht (siehe Endpoints.setMyPosition):
+// setzen, löschen oder erst hinfahren und dann setzen. Einen eigenen Löschbefehl
+// gibt es nicht — gelöscht wird, indem die aktuelle Favoritenposition erneut kommt.
+//
+// Kein Optimistic Update: Was am Ende herauskommt, entscheidet die Firmware nach
+// der Fahrt. Die Antwort trägt den Stand danach, die endgültige Bestätigung kommt
+// als shadeState über den Socket.
+export async function setFavoritePosition(
+  shadeId: number,
+  pos: number,
+  tilt?: number
+): Promise<void> {
+  const shade = await getApi().endpoints.setMyPosition({ shadeId, pos, tilt });
+  useAppStore.getState().applyShadeState({ ...shade, shadeId });
+}
+
 // Tilt ist eine eigene Achse mit eigenen Befehlen und eigenen Feldern. Die Firmware
 // wertet in /tiltCommand ENTWEDER command ODER target aus (target nur, wenn kein
 // command mitkommt) — beides zusammen zu schicken hieße, das Ziel zu verlieren.

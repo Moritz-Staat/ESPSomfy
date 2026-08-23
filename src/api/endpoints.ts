@@ -41,6 +41,14 @@ export interface LinkToGroupRequest {
   groupId: number;
 }
 
+export interface SetMyPositionRequest {
+  shadeId: number;
+  /** Zielposition 0–100. Werte außerhalb bewirken nichts (die Firmware prüft). */
+  pos: number;
+  /** Lamellenziel. Bei Rollos mit Tilt IMMER mitgeben — siehe Kommentar unten. */
+  tilt?: number;
+}
+
 // Die Firmware verteilt ihre Routen auf zwei Server:
 //   - apiClient  → Port 8081: Lesen, Fahrbefehle, setPositions, setSensor, backup, reboot
 //   - configClient → Port 80: sämtliche Verwaltung (save*, add*, delete*, *SortOrder, …)
@@ -105,8 +113,8 @@ export class Endpoints {
     return this.client.put('/repeatCommand');
   }
 
-  // Setzt Position, Tilt und/oder Favorit, ohne zu fahren. Für den Favoriten gilt
-  // die übliche Semantik: ein Wert außerhalb 0–100 löscht ihn (siehe hasFavorite).
+  // Schreibt Position, Tilt und Favorit NUR in die Datenbank des ESP — der Motor
+  // erfährt davon nichts. Zum Programmieren des Favoriten ist setMyPosition zuständig.
   setPositions(req: SetPositionsRequest): Promise<Shade> {
     return this.client.put('/setPositions', req);
   }
@@ -166,6 +174,21 @@ export class Endpoints {
 
   unlinkFromGroup(req: LinkToGroupRequest): Promise<Group> {
     return this.config.put('/unlinkFromGroup', req);
+  }
+
+  // Programmiert den Favoriten im MOTOR (Somfy-My-Befehl mit langer Wiederholung),
+  // nicht bloß in der Datenbank. Das Verhalten hängt vom Zustand ab:
+  //   - Rollo steht nicht auf pos      → es fährt zuerst dorthin, dann wird gesetzt
+  //   - Rollo steht auf pos == myPos   → der Favorit wird GELÖSCHT
+  //   - Rollo steht auf pos != myPos   → der Favorit wird gesetzt
+  // Es gibt also keinen eigenen Löschbefehl: Löschen heißt, die aktuelle
+  // Favoritenposition erneut zu senden. Während einer Fahrt bleibt der Aufruf
+  // wirkungslos (isIdle-Prüfung), antwortet aber trotzdem mit HTTP 200.
+  //
+  // Achtung: Bleibt `tilt` weg, setzt die Firmware `tilt = myPos` — den Wert der
+  // FAHRachse (Web.cpp:1550). Bei Rollos mit Lamellen deshalb immer beides senden.
+  setMyPosition(req: SetMyPositionRequest): Promise<Shade> {
+    return this.config.put('/setMyPosition', req);
   }
 
   // Die drei SortOrder-Routen erwarten ein nacktes JSON-Array, kein Objekt, und

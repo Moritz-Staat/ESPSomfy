@@ -110,3 +110,20 @@ export function hasFavorite(myPos: number | undefined): boolean {
 export function isMoving(shade: Pick<Shade, 'direction'>): boolean {
   return shade.direction !== 0;
 }
+
+// Somfy kennt für den Favoriten nur einen Befehl: Steht das Rollo auf der
+// gespeicherten Favoritenposition und wird genau dieser Wert erneut gesendet,
+// LÖSCHT die Firmware den Favoriten, statt ihn zu setzen (SomfyShade::setMyPosition).
+// Bei Rollos mit Lamellen müssen dafür beide Achsen übereinstimmen.
+export function clearsFavorite(
+  shade: Pick<Shade, 'myPos' | 'myTiltPos' | 'tiltType'>,
+  pos: number,
+  tilt?: number
+): boolean {
+  if (shade.tiltType === TiltType.tiltonly) {
+    return hasFavorite(shade.myTiltPos) && tilt === shade.myTiltPos;
+  }
+  if (!hasFavorite(shade.myPos) || pos !== shade.myPos) return false;
+  if (shade.tiltType === TiltType.none) return true;
+  return tilt === shade.myTiltPos;
+}

@@ -8,6 +8,9 @@ export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 export interface ButtonProps {
   label: string;
   onPress: () => void;
+  /** Zweitbelegung (z. B. Favoritendialog am My-Knopf). Nie der einzige Weg zu einer
+      Funktion — ein langer Druck ist weder sichtbar noch gut bedienbar. */
+  onLongPress?: () => void;
   variant?: ButtonVariant;
   /** Auf einer Farbkarte: Flächen und Label kommen aus dem Kartenstil. */
   card?: CardStyle;
@@ -24,6 +27,7 @@ export interface ButtonProps {
 export function Button({
   label,
   onPress,
+  onLongPress,
   variant = 'primary',
   card,
   disabled = false,
@@ -63,6 +67,7 @@ export function Button({
         style,
       ]}
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={inactive}
       accessibilityRole="button"
       accessibilityLabel={label}
