@@ -27,9 +27,15 @@ export interface DeviceInfo {
   wifi?: WifiStrengthEvent;
 }
 
+// Felder, die optimistisch vorweggenommen werden dürfen — Fahrt wie Tilt.
+export type OptimisticFields = Pick<
+  Shade,
+  'direction' | 'position' | 'target' | 'tiltDirection' | 'tiltPosition' | 'tiltTarget'
+>;
+
 interface PendingRollback {
   timer: ReturnType<typeof setTimeout>;
-  snapshot: Pick<Shade, 'direction' | 'position' | 'target'>;
+  snapshot: Partial<OptimisticFields>;
 }
 
 // Rollback-Timer leben außerhalb des States (nicht serialisierbar, nicht renderrelevant).
@@ -60,10 +66,10 @@ export interface AppState {
   setMemory(memory: MemoryStatus): void;
   setWifi(wifi: WifiStrengthEvent): void;
 
-  // Optimistic Update: direction/target sofort lokal setzen; kommt binnen 3 s kein
-  // bestätigendes shadeState, wird der Schnappschuss zurückgerollt. Socket-Events
+  // Optimistic Update: die geänderten Felder sofort lokal setzen; kommt binnen 3 s
+  // kein bestätigendes shadeState, wird der Schnappschuss zurückgerollt. Socket-Events
   // gewinnen während einer Bewegung immer (applyShadeState räumt den Rollback ab).
-  applyOptimistic(shadeId: number, change: Partial<Pick<Shade, 'direction' | 'target' | 'position'>>): void;
+  applyOptimistic(shadeId: number, change: Partial<OptimisticFields>): void;
 }
 
 function mergeById<T, P extends Partial<T>>(
@@ -170,12 +176,16 @@ export const useAppStore = create<AppState>()(
         if (!shade) return;
         const existing = pendingRollbacks.get(shadeId);
         if (existing) clearTimeout(existing.timer);
-        // Schnappschuss nur beim ersten Optimistic-Update der Sequenz festhalten.
-        const snapshot = existing?.snapshot ?? {
-          direction: shade.direction,
-          position: shade.position,
-          target: shade.target,
-        };
+        // Nur die Felder sichern, die tatsächlich vorweggenommen werden — sonst
+        // würde ein Tilt-Rollback eine zwischenzeitlich bestätigte Fahrposition
+        // mit zurückdrehen. Bereits gesicherte Felder behalten ihren ersten Wert:
+        // der Schnappschuss soll den Stand vor der ganzen Sequenz tragen.
+        const fresh: Partial<OptimisticFields> = {};
+        for (const key of Object.keys(change) as (keyof OptimisticFields)[]) {
+          const value = shade[key];
+          if (value !== undefined) fresh[key] = value as never;
+        }
+        const snapshot = { ...fresh, ...(existing?.snapshot ?? {}) };
         const timer = setTimeout(() => {
           pendingRollbacks.delete(shadeId);
           set((state) => ({ shadesById: mergeById(state.shadesById, shadeId, snapshot) }));
