@@ -1,7 +1,9 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ConnectionBar } from '@/components/ConnectionBar';
+import { FavoriteSheet } from '@/components/FavoriteSheet';
 import { PositionSlider } from '@/components/PositionSlider';
 import { ShadeGraphic } from '@/components/ShadeGraphic';
 import { TiltControl } from '@/components/TiltControl';
@@ -16,6 +18,7 @@ export default function ShadeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const shade = useAppStore((s) => s.shadesById[Number(id)]);
   const theme = useTheme();
+  const [favoriteOpen, setFavoriteOpen] = useState(false);
 
   if (!shade) {
     return (
@@ -106,12 +109,37 @@ export default function ShadeDetail() {
               {/* Bei tiltonly steuern diese Befehle die Lamellen: die Firmware
                   lenkt Up/Down/My dort intern auf das Tilt-Ziel um. */}
               <Button label="Hoch" card={card} onPress={() => send('Up')} />
-              <Button label={myLabel} card={card} onPress={() => send('My')} />
+              <Button
+                label={myLabel}
+                card={card}
+                onPress={() => send('My')}
+                onLongPress={() => setFavoriteOpen(true)}
+              />
               <Button label="Runter" card={card} onPress={() => send('Down')} />
             </>
           )}
         </View>
+
+        {/* Der lange Druck auf „My" öffnet denselben Dialog, ist aber unsichtbar —
+            deshalb steht hier zusätzlich ein benannter Weg dorthin. */}
+        {!isDry && (
+          <Pressable
+            style={styles.favoriteLink}
+            onPress={() => setFavoriteOpen(true)}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.favoriteLinkText, { color: card.fg }]}>
+              {hasFavorite(shade.myPos) || hasFavorite(shade.myTiltPos)
+                ? 'Favoritenposition ändern'
+                : 'Favoritenposition festlegen'}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
+
+      {/* Nur im geöffneten Zustand gerendert: so startet das Blatt jedes Mal mit
+          frischen Werten, ohne sie in einem Effekt nachzuziehen. */}
+      {favoriteOpen && <FavoriteSheet shade={shade} onClose={() => setFavoriteOpen(false)} />}
     </View>
   );
 }
@@ -129,4 +157,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxxl,
   },
   buttons: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xl },
+  favoriteLink: { marginTop: spacing.xl, padding: spacing.s },
+  favoriteLinkText: { fontFamily: font.medium, fontSize: 15, textDecorationLine: 'underline' },
 });

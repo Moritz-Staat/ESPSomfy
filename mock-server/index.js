@@ -1,6 +1,7 @@
 /* eslint-disable */
 // Mock-Server für ESPSomfy-RTS v2.4.6.
-// HTTP auf :8081 liefert die ECHTEN Antworten aus docs/api-samples/, der
+// HTTP auf :8081 liefert die ECHTEN Antworten aus docs/api-samples/, die Verwaltung
+// haengt wie am Geraet auf :80 (MOCK_CONFIG_PORT), der
 // WebSocket auf :8080 spricht das exakte Frameformat `42[event,{...}]` mit
 // unquotiertem Event-Namen. `npm run mock` startet ihn.
 //
@@ -18,6 +19,10 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 
 const HTTP_PORT = process.env.MOCK_HTTP_PORT ? Number(process.env.MOCK_HTTP_PORT) : 8081;
+// Die Firmware betreibt zwei Server: 8081 fuer Lesen und Fahrbefehle, 80 fuer die
+// Verwaltung. Der Mock bildet die Trennung nach, damit ein Aufruf auf dem falschen
+// Port hier genauso ins Leere laeuft wie am Geraet.
+const CONFIG_PORT = process.env.MOCK_CONFIG_PORT ? Number(process.env.MOCK_CONFIG_PORT) : 80;
 const WS_PORT = process.env.MOCK_WS_PORT ? Number(process.env.MOCK_WS_PORT) : 8080;
 const samplesDir = path.join(__dirname, '..', 'docs', 'api-samples');
 
@@ -257,77 +262,144 @@ function currentDiscovery() {
   return { ...samples.discovery, shades, rooms: samples.rooms, groups: samples.groups };
 }
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://localhost:${HTTP_PORT}`);
-  let bodyRaw = '';
-  req.on('data', (chunk) => (bodyRaw += chunk));
-  req.on('end', () => {
-    let body = {};
-    try {
-      body = bodyRaw ? JSON.parse(bodyRaw) : {};
-    } catch {
-      body = {};
-    }
-    for (const [key, value] of url.searchParams) body[key] = value;
+// Favoritenposition wie SomfyShade::setMyPosition: derselbe Aufruf setzt, loescht
+// oder faehrt erst hin. Waehrend einer Fahrt bleibt er wirkungslos (isIdle).
+function handleSetMyPosition(shade, body) {
+  const pos = Number(body.pos);
+  if (!Number.isFinite(pos) || pos < 0 || pos > 100) return;
+  if (shade.direction !== 0 || shade.tiltDirection !== 0) return;
+  const tiltOnly = shade.tiltType === 3;
+  const hasTilt = shade.tiltType !== 0;
+  const tilt = hasTilt && body.tilt !== undefined ? Number(body.tilt) : shade.tiltPosition;
 
-    // Mock-Steuerung ist von den Fehlermodi ausgenommen.
-    if (url.pathname === '/_mock/mode') {
-      if (body.mode) mode = body.mode;
-      return json(res, 200, { mode });
-    }
+  if (tiltOnly) {
+    if (tilt !== shade.tiltPosition) return startTiltMove(shade, tilt);
+    shade.myTiltPos = tilt === shade.myTiltPos ? -1 : tilt;
+    broadcast('shadeState', shadeStateBody(shade));
+    return;
+  }
+  // Noch nicht am Ziel: erst hinfahren, gesetzt wird nach der Ankunft.
+  if (pos !== shade.position || (hasTilt && tilt !== shade.tiltPosition)) {
+    if (pos !== shade.position) startMove(shade, pos);
+    if (hasTilt && tilt !== shade.tiltPosition) startTiltMove(shade, tilt);
+    return;
+  }
+  const clears = pos === shade.myPos && (!hasTilt || tilt === shade.myTiltPos);
+  shade.myPos = clears ? -1 : pos;
+  if (hasTilt) shade.myTiltPos = clears ? -1 : tilt;
+  broadcast('shadeState', shadeStateBody(shade));
+}
 
-    if (mode === 'timeout') return; // Antwort absichtlich verschlucken.
-    if (mode === 'error500') {
-      return json(res, 500, { status: 'ERROR', desc: 'Mock-Fehlermodus aktiv' });
+// Routen des API-Servers (Port 8081).
+function handleApiRoute(url, body, res) {
+  switch (url.pathname) {
+    case '/discovery':
+      return json(res, 200, currentDiscovery());
+    case '/shades':
+      return json(res, 200, shades);
+    case '/rooms':
+      return json(res, 200, samples.rooms);
+    case '/groups':
+      return json(res, 200, samples.groups);
+    case '/controller':
+      return json(res, 200, { ...samples.controller, shades });
+    case '/login':
+      return json(res, 200, samples.login);
+    case '/shadeCommand': {
+      const shade = getShade(body.shadeId);
+      if (!shade) return notFound(res);
+      handleCommand(shade, body);
+      return json(res, 200, shade);
     }
+    case '/tiltCommand': {
+      const shade = getShade(body.shadeId);
+      if (!shade) return notFound(res);
+      handleTiltCommand(shade, body);
+      return json(res, 200, shade);
+    }
+    case '/shade': {
+      const shade = getShade(body.shadeId);
+      if (!shade) return notFound(res);
+      return json(res, 200, shade);
+    }
+    default:
+      return unknownRoute(res, url);
+  }
+}
 
-    switch (url.pathname) {
-      case '/discovery':
-        return json(res, 200, currentDiscovery());
-      case '/shades':
-        return json(res, 200, shades);
-      case '/rooms':
-        return json(res, 200, samples.rooms);
-      case '/groups':
-        return json(res, 200, samples.groups);
-      case '/controller':
-        return json(res, 200, { ...samples.controller, shades });
-      case '/login':
-        return json(res, 200, samples.login);
-      case '/shadeCommand': {
-        const shade = getShade(body.shadeId);
-        if (!shade) {
-          return json(res, 500, { status: 'ERROR', desc: 'Shade with the specified id not found.' });
-        }
-        handleCommand(shade, body);
-        return json(res, 200, shade);
-      }
-      case '/tiltCommand': {
-        const shade = getShade(body.shadeId);
-        if (!shade) {
-          return json(res, 500, { status: 'ERROR', desc: 'Shade with the specified id not found.' });
-        }
-        handleTiltCommand(shade, body);
-        return json(res, 200, shade);
-      }
-      case '/shade': {
-        const shade = getShade(body.shadeId);
-        if (!shade) {
-          return json(res, 500, { status: 'ERROR', desc: 'Shade with the specified id not found.' });
-        }
-        return json(res, 200, shade);
-      }
-      default:
-        // Die Firmware meldet Fehler als 500 mit status/desc, nicht als 4xx.
-        return json(res, 500, { status: 'ERROR', desc: `Unbekannter Endpunkt ${url.pathname}` });
+// Routen des Web-UI-Servers (Port 80) — die gesamte Verwaltung.
+function handleConfigRoute(url, body, res) {
+  switch (url.pathname) {
+    case '/login':
+      return json(res, 200, samples.login);
+    case '/setMyPosition': {
+      const shade = getShade(body.shadeId);
+      if (!shade) return notFound(res);
+      handleSetMyPosition(shade, body);
+      return json(res, 200, shade);
     }
+    default:
+      return unknownRoute(res, url);
+  }
+}
+
+function notFound(res) {
+  return json(res, 500, { status: 'ERROR', desc: 'Shade with the specified id not found.' });
+}
+
+// Die Firmware meldet Fehler als 500 mit status/desc, nicht als 4xx.
+function unknownRoute(res, url) {
+  return json(res, 500, { status: 'ERROR', desc: `Unbekannter Endpunkt ${url.pathname}` });
+}
+
+function makeServer(port, route) {
+  return http.createServer((req, res) => {
+    const url = new URL(req.url, `http://localhost:${port}`);
+    let bodyRaw = '';
+    req.on('data', (chunk) => (bodyRaw += chunk));
+    req.on('end', () => {
+      let body = {};
+      try {
+        body = bodyRaw ? JSON.parse(bodyRaw) : {};
+      } catch {
+        body = {};
+      }
+      // Ein nacktes Array (die SortOrder-Routen) bleibt als solches erhalten.
+      if (!Array.isArray(body)) {
+        for (const [key, value] of url.searchParams) body[key] = value;
+      }
+
+      // Mock-Steuerung ist von den Fehlermodi ausgenommen.
+      if (url.pathname === '/_mock/mode') {
+        if (body.mode) mode = body.mode;
+        return json(res, 200, { mode });
+      }
+      if (mode === 'timeout') return; // Antwort absichtlich verschlucken.
+      if (mode === 'error500') {
+        return json(res, 500, { status: 'ERROR', desc: 'Mock-Fehlermodus aktiv' });
+      }
+      return route(url, body, res);
+    });
   });
-});
+}
+
+const server = makeServer(HTTP_PORT, handleApiRoute);
+const configServer = makeServer(CONFIG_PORT, handleConfigRoute);
 
 server.listen(HTTP_PORT, () => {
-  console.log(`Mock-HTTP auf http://localhost:${HTTP_PORT} (Modus: ${mode})`);
+  console.log(`Mock-API auf http://localhost:${HTTP_PORT} (Modus: ${mode})`);
   console.log(`Mock-WebSocket auf ws://localhost:${WS_PORT}`);
   console.log(`Modus wechseln: curl -X PUT http://localhost:${HTTP_PORT}/_mock/mode -d '{"mode":"error500"}'`);
 });
 
-module.exports = { server, wss, shades, startMove, startTiltMove };
+// Port 80 braucht auf manchen Systemen erhoehte Rechte — scheitert das, laeuft der
+// Rest weiter und nur die Verwaltung ist nicht erreichbar.
+configServer.on('error', (err) => {
+  console.warn(`Mock-Verwaltung auf Port ${CONFIG_PORT} nicht gestartet: ${err.message}`);
+  console.warn('Anderen Port waehlen: MOCK_CONFIG_PORT=8080 npm run mock');
+});
+configServer.listen(CONFIG_PORT, () => {
+  console.log(`Mock-Verwaltung auf http://localhost:${CONFIG_PORT}`);
+});
+
+module.exports = { server, configServer, wss, shades, startMove, startTiltMove };

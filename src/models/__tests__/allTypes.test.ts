@@ -1,4 +1,5 @@
 import {
+  clearsFavorite,
   normalizeShadeState,
   RawShadeStateEvent,
   Shade,
@@ -120,5 +121,37 @@ describe('flipPosition / flipCommands', () => {
     expect(patch.tiltTarget).toBe(80);
     expect(patch.tiltPosition).toBe(40);
     expect(patch.myTiltPos).toBe(60);
+  });
+});
+
+describe('clearsFavorite', () => {
+  const base = { myPos: 40, myTiltPos: -1, tiltType: TiltType.none } as const;
+
+  test('derselbe Wert auf der Favoritenposition löscht', () => {
+    expect(clearsFavorite(base, 40)).toBe(true);
+  });
+
+  test('ein anderer Wert setzt, statt zu löschen', () => {
+    expect(clearsFavorite(base, 55)).toBe(false);
+  });
+
+  test('ohne gesetzten Favoriten wird nie gelöscht', () => {
+    expect(clearsFavorite({ ...base, myPos: -1 }, -1)).toBe(false);
+    expect(clearsFavorite({ ...base, myPos: -1 }, 0)).toBe(false);
+  });
+
+  // Bei Lamellen zählt die Firmware beide Achsen — stimmt nur eine, wird gesetzt.
+  test('mit Lamellen müssen beide Achsen übereinstimmen', () => {
+    const blind = { myPos: 40, myTiltPos: 70, tiltType: TiltType.integrated };
+    expect(clearsFavorite(blind, 40, 70)).toBe(true);
+    expect(clearsFavorite(blind, 40, 20)).toBe(false);
+    expect(clearsFavorite(blind, 10, 70)).toBe(false);
+  });
+
+  test('bei tiltonly zählt allein die Lamellenachse', () => {
+    const raff = { myPos: -1, myTiltPos: 70, tiltType: TiltType.tiltonly };
+    expect(clearsFavorite(raff, 0, 70)).toBe(true);
+    expect(clearsFavorite(raff, 99, 70)).toBe(true);
+    expect(clearsFavorite(raff, 0, 20)).toBe(false);
   });
 });

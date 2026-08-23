@@ -71,10 +71,39 @@ Sämtliche **Verwaltung läuft ausschließlich über Port 80**:
 4. **`/deleteShade` antwortet mit HTTP 400** (nicht 500), wenn das Rollo Mitglied einer Gruppe ist: `This shade is a member of a group and cannot be deleted.`
 5. **`/linkToGroup` und `/unlinkFromGroup` behandeln `shadeId 0` als „nicht angegeben"** und lehnen mit HTTP 500 ab. Ein Rollo mit Id 0 lässt sich über diese Routen nicht zuordnen.
 6. **`/addRoom` und `/addGroup` antworten mit dem angelegten Objekt**, inklusive der vergebenen Id. Bei Überschreitung von `SOMFY_MAX_ROOMS` beziehungsweise `SOMFY_MAX_GROUPS` kommt HTTP 500.
-7. **`/setMyPosition`** nimmt `shadeId`, `pos` und `tilt` wahlweise als Query-Parameter oder im Rumpf. Für den Favoriten reicht jedoch `/setPositions` auf Port 8081 — die App nutzt den kürzeren Weg.
+7. **`/setMyPosition`** nimmt `shadeId`, `pos` und `tilt` wahlweise als Query-Parameter oder im Rumpf. Siehe eigener Abschnitt unten — `/setPositions` ist dafür **kein** Ersatz.
 
 ## Sicherung greift in v2.4.6 nicht
 
 `Web::isAuthenticated()` ist deklariert (`Web.h:43`) und implementiert (`Web.cpp:79`), wird aber **an keiner einzigen Route aufgerufen**. Unabhängig von `authType` sind damit alle Routen ohne `apikey`-Header erreichbar.
 
 Für die App ohne Folgen — sie schickt den Token weiterhin mit, und der Auto-Relogin bei 401/403 bleibt als Absicherung für künftige Firmware-Versionen bestehen. Beim Betrieb außerhalb des eigenen Netzes ist der Befund allerdings zu beachten: die Sicherung des Geräts ersetzt keinen Netzzugriffsschutz.
+
+
+## Favoritenposition: `/setMyPosition` gegen `/setPositions`
+
+Die beiden Routen sehen ähnlich aus, tun aber Grundverschiedenes:
+
+- **`/setPositions`** (Port 8081) schreibt Position, Tilt und `myPos` **nur in die Datenbank des ESP**. Der Motor erfährt davon nichts — der Favorit existiert danach nur in der Anzeige.
+- **`/setMyPosition`** (Port 80) programmiert den Favoriten **im Motor**, über einen Somfy-`My`-Befehl mit langer Wiederholung (`SETMY_REPEATS`).
+
+Für den Favoriten ist deshalb ausschließlich `/setMyPosition` richtig.
+
+### Ein Befehl, drei Wirkungen
+
+`SomfyShade::setMyPosition` (`Somfy.cpp:2770`) entscheidet anhand des Zustands:
+
+| Ausgangslage | Wirkung |
+|---|---|
+| Rollo steht **nicht** auf `pos` | es fährt zuerst dorthin (`settingMyPos` merkt den Auftrag vor), gesetzt wird nach der Ankunft |
+| Rollo steht auf `pos`, und `pos == myPos` | der Favorit wird **gelöscht** |
+| Rollo steht auf `pos`, und `pos != myPos` | der Favorit wird **gesetzt** |
+
+Es gibt also **keinen eigenen Löschbefehl**: Gelöscht wird, indem die aktuelle Favoritenposition erneut gesendet wird. Bei Rollos mit Lamellen müssen dafür beide Achsen übereinstimmen. Die App bildet das in `clearsFavorite()` ab und beschriftet die Schaltfläche vorher entsprechend.
+
+### Weitere Eigenheiten
+
+- **Während einer Fahrt bleibt der Aufruf wirkungslos** (`if(!this->isIdle()) return;`), antwortet aber trotzdem mit HTTP 200. Die App blendet den Knopf deshalb aus, solange das Rollo fährt.
+- **`pos` außerhalb 0–100 bewirkt nichts.** Der Web-Handler prüft `if(pos >= 0 && pos <= 100)` vor dem Aufruf — die Antwort kommt trotzdem, weil die Zeilen darunter nicht geklammert sind (`Web.cpp:1552`).
+- **Bleibt `tilt` weg, setzt die Firmware `tilt = shade->myPos`** — den Wert der *Fahr*achse (`Web.cpp:1550`). Das sieht nach einem Versehen aus (gemeint war vermutlich `myTiltPos`). Bei Rollos mit Lamellen deshalb immer beide Werte senden.
+- Bei `tiltType == none` setzt die Firmware `tilt` selbst auf -1; dort genügt `{shadeId, pos}`.
