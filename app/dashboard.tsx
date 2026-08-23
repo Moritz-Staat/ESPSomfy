@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 
@@ -51,6 +51,7 @@ export default function Dashboard() {
   const groupsById = useAppStore((s) => s.groupsById);
   const device = useAppStore((s) => s.device);
   const { colors } = useTheme();
+  const router = useRouter();
   const sections = useMemo<Section[]>(() => {
     // Gruppen zuerst: ein Gruppenbefehl erreicht alle Motoren mit einem einzigen
     // Funkbefehl und ist damit der schnellere Weg als Rollo für Rollo.
@@ -69,7 +70,21 @@ export default function Dashboard() {
   return (
     <View style={[styles.container, { backgroundColor: colors.canvas }]}>
       <Stack.Screen
-        options={{ title: device?.hostname ?? 'Rollos', headerRight: () => <ThemeToggle /> }}
+        options={{
+          title: device?.hostname ?? 'Rollos',
+          headerRight: () => (
+            <View style={styles.headerActions}>
+              <ThemeToggle />
+              <Pressable
+                onPress={() => router.push('/settings')}
+                accessibilityRole="button"
+                accessibilityLabel="Einstellungen"
+              >
+                <Text style={[styles.toggle, { color: colors.muted }]}>Verwalten</Text>
+              </Pressable>
+            </View>
+          ),
+        }}
       />
       <ConnectionBar />
       <SectionList<Shade | GroupSummary, Section>
@@ -94,6 +109,7 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerActions: { flexDirection: 'row', gap: spacing.l, alignItems: 'center' },
   // Raum-Überschrift 22/600/−0.3; 32 vor einem Raum, 12 bis zur ersten Karte.
   sectionHeader: {
     ...type.roomHeader,
