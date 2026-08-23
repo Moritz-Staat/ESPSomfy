@@ -75,6 +75,19 @@ export async function sendShadeTarget(shadeId: number, target: number): Promise<
   await getApi().endpoints.shadeCommand({ shadeId, target });
 }
 
+// Gruppenbefehl: ein einziger Funkbefehl erreicht alle Motoren der Gruppe.
+// BEWUSST ohne Optimistic Update — anders als beim einzelnen Rollo gibt es für
+// die Gruppe keine Positionsrückmeldung. Die Firmware schätzt die Positionen der
+// Mitglieder, deren shadeState-Events nacheinander eintreffen. Eine vorweggenommene
+// Gruppenposition wäre eine Behauptung, die kein Rollo bestätigt.
+export async function sendGroupCommand(groupId: number, command: SomfyCommand): Promise<void> {
+  await getApi().endpoints.groupCommand({ groupId, command });
+}
+
+export async function sendGroupTarget(groupId: number, target: number): Promise<void> {
+  await getApi().endpoints.groupCommand({ groupId, target });
+}
+
 // Programmiert den Favoriten im Motor. Der Aufruf hat drei mögliche Wirkungen,
 // abhängig davon, wo das Rollo gerade steht (siehe Endpoints.setMyPosition):
 // setzen, löschen oder erst hinfahren und dann setzen. Einen eigenen Löschbefehl
