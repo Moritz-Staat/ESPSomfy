@@ -72,6 +72,7 @@ shades.push(tiltShade(4, 'Raffstore Bad', 3, 1));
 
 // Am echten Gerät sind keine Gruppen angelegt. Eine erfundene Gruppe macht die
 // Gruppensteuerung pruefbar; flags ist wie in der Firmware das OR der Mitglieder.
+const rooms = JSON.parse(JSON.stringify(samples.rooms));
 const groups = JSON.parse(JSON.stringify(samples.groups));
 if (groups.length === 0) {
   groups.push({
@@ -93,6 +94,21 @@ function getShade(shadeId) {
 
 function getGroup(groupId) {
   return groups.find((g) => g.groupId === Number(groupId));
+}
+
+function getRoom(roomId) {
+  return rooms.find((r) => r.roomId === Number(roomId));
+}
+
+// Grenzen des echten Geraets (GET /controller).
+const MAX_ROOMS = 16;
+const MAX_GROUPS = 16;
+
+function nextId(list, key, max) {
+  for (let id = 1; id <= max; id++) {
+    if (!list.some((entry) => entry[key] === id)) return id;
+  }
+  return null;
 }
 
 // Socket-Format von SomfyShade::emitState: Feld heißt `type` (nicht shadeType),
@@ -277,7 +293,7 @@ function json(res, status, payload) {
 }
 
 function currentDiscovery() {
-  return { ...samples.discovery, shades, rooms: samples.rooms, groups };
+  return { ...samples.discovery, shades, rooms, groups };
 }
 
 // Favoritenposition wie SomfyShade::setMyPosition: derselbe Aufruf setzt, loescht
@@ -316,7 +332,7 @@ function handleApiRoute(url, body, res) {
     case '/shades':
       return json(res, 200, shades);
     case '/rooms':
-      return json(res, 200, samples.rooms);
+      return json(res, 200, rooms);
     case '/groups':
       return json(res, 200, groups);
     case '/groupCommand': {
@@ -359,6 +375,21 @@ function handleApiRoute(url, body, res) {
   }
 }
 
+function err(res, status, desc) {
+  return json(res, status, { status: 'ERROR', desc });
+}
+
+// Die drei Sortierrouten erwarten ein nacktes Array und vergeben sortOrder in
+// dessen Reihenfolge. Sie senden KEIN Event zurueck - wie in der Firmware.
+function applySortOrder(list, key, ids, res) {
+  if (!Array.isArray(ids)) return err(res, 500, 'Expected an array.');
+  ids.forEach((id, index) => {
+    const entry = list.find((e) => e[key] === Number(id));
+    if (entry) entry.sortOrder = index;
+  });
+  return json(res, 200, { status: 'OK', desc: 'Successfully set order' });
+}
+
 // Routen des Web-UI-Servers (Port 80) — die gesamte Verwaltung.
 function handleConfigRoute(url, body, res) {
   switch (url.pathname) {
@@ -370,6 +401,128 @@ function handleConfigRoute(url, body, res) {
       handleSetMyPosition(shade, body);
       return json(res, 200, shade);
     }
+
+    // --- Rollos ---
+    case '/saveShade': {
+      const shade = getShade(body.shadeId);
+      if (!shade) return notFound(res);
+      Object.assign(shade, body);
+      broadcast('shadeState', shadeStateBody(shade));
+      return json(res, 200, shade);
+    }
+    case '/deleteShade': {
+      const shade = getShade(body.shadeId);
+      if (!shade) return notFound(res);
+      // Eigenheit der Firmware: HTTP 400 statt 500, wenn das Rollo gruppiert ist.
+      if (groups.some((g) => g.shades.includes(shade.shadeId))) {
+        return err(res, 400, 'This shade is a member of a group and cannot be deleted.');
+      }
+      shades.splice(shades.indexOf(shade), 1);
+      broadcast('shadeRemoved', { shadeId: shade.shadeId });
+      return json(res, 200, { status: 'SUCCESS', desc: 'Shade deleted.' });
+    }
+
+    // --- Raeume ---
+    case '/getNextRoom':
+      return json(res, 200, { roomId: nextId(rooms, 'roomId', MAX_ROOMS) ?? 0 });
+    case '/addRoom': {
+      if (rooms.length >= MAX_ROOMS) {
+        return err(res, 500, 'Maximum number of rooms exceeded.');
+      }
+      const roomId = nextId(rooms, 'roomId', MAX_ROOMS);
+      const room = { roomId, name: body.name ?? 'Raum', sortOrder: rooms.length };
+      rooms.push(room);
+      broadcast('roomAdded', room);
+      return json(res, 200, room);
+    }
+    case '/saveRoom': {
+      const room = getRoom(body.roomId);
+      if (!room) return err(res, 500, 'Room Id not found.');
+      Object.assign(room, body);
+      broadcast('roomState', room);
+      return json(res, 200, room);
+    }
+    case '/deleteRoom': {
+      const room = getRoom(body.roomId);
+      if (!room) return err(res, 500, 'Room with the specified id not found.');
+      // Wie Somfy.cpp:4052: die Zuordnung betroffener Rollos UND Gruppen faellt
+      // auf 0 zurueck, jedes davon meldet sich einzeln.
+      for (const shade of shades) {
+        if (shade.roomId === room.roomId) {
+          shade.roomId = 0;
+          broadcast('shadeState', shadeStateBody(shade));
+        }
+      }
+      for (const group of groups) {
+        if (group.roomId === room.roomId) {
+          group.roomId = 0;
+          broadcast('groupState', group);
+        }
+      }
+      rooms.splice(rooms.indexOf(room), 1);
+      broadcast('roomRemoved', { roomId: room.roomId });
+      return json(res, 200, { status: 'SUCCESS', desc: 'Room deleted.' });
+    }
+
+    // --- Gruppen ---
+    case '/addGroup': {
+      if (groups.length >= MAX_GROUPS) {
+        return err(res, 500, 'Maximum number of groups exceeded.');
+      }
+      const groupId = nextId(groups, 'groupId', MAX_GROUPS);
+      const group = {
+        groupId,
+        remoteAddress: 580000 + groupId,
+        name: body.name ?? 'Gruppe',
+        sunSensor: false,
+        shades: [],
+        flags: 0,
+        sortOrder: groups.length,
+      };
+      groups.push(group);
+      broadcast('groupAdded', group);
+      return json(res, 200, group);
+    }
+    case '/saveGroup': {
+      const group = getGroup(body.groupId);
+      if (!group) return err(res, 500, 'Group Id not found.');
+      Object.assign(group, body);
+      broadcast('groupState', group);
+      return json(res, 200, group);
+    }
+    case '/deleteGroup': {
+      const group = getGroup(body.groupId);
+      if (!group) return err(res, 500, 'Group with the specified id not found.');
+      groups.splice(groups.indexOf(group), 1);
+      broadcast('groupRemoved', { groupId: group.groupId });
+      return json(res, 200, { status: 'SUCCESS', desc: 'Group deleted.' });
+    }
+    case '/linkToGroup':
+    case '/unlinkFromGroup': {
+      // Die Firmware wertet shadeId 0 als "nicht angegeben".
+      if (!body.groupId) return err(res, 500, 'Group id not provided.');
+      if (!body.shadeId) return err(res, 500, 'Shade id not provided.');
+      const group = getGroup(body.groupId);
+      if (!group) return err(res, 500, 'Group id not found.');
+      const shade = getShade(body.shadeId);
+      if (!shade) return err(res, 500, 'Shade id not found.');
+      const linking = url.pathname === '/linkToGroup';
+      const member = group.shades.includes(shade.shadeId);
+      if (linking && !member) group.shades.push(shade.shadeId);
+      if (!linking && member) group.shades.splice(group.shades.indexOf(shade.shadeId), 1);
+      shade.inGroup = groups.some((g) => g.shades.includes(shade.shadeId));
+      broadcast('groupState', group);
+      return json(res, 200, group);
+    }
+
+    // --- Sortierung ---
+    case '/shadeSortOrder':
+      return applySortOrder(shades, 'shadeId', body, res);
+    case '/roomSortOrder':
+      return applySortOrder(rooms, 'roomId', body, res);
+    case '/groupSortOrder':
+      return applySortOrder(groups, 'groupId', body, res);
+
     default:
       return unknownRoute(res, url);
   }

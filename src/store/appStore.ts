@@ -63,6 +63,10 @@ export interface AppState {
   removeGroup(groupId: number): void;
   applyRoomState(patch: RoomPatch): void;
   removeRoom(roomId: number): void;
+  /** Hebt die Raumzuordnung von Rollos und Gruppen auf (nach dem Löschen eines Raums). */
+  clearRoomAssignment(roomId: number): void;
+  /** Setzt sortOrder in Listenreihenfolge — die SortOrder-Routen senden keine Events. */
+  applySortOrder(kind: 'shades' | 'rooms' | 'groups', ids: number[]): void;
   setMemory(memory: MemoryStatus): void;
   setWifi(wifi: WifiStrengthEvent): void;
 
@@ -163,6 +167,51 @@ export const useAppStore = create<AppState>()(
         set((state) => {
           const { [roomId]: _removed, ...rest } = state.roomsById;
           return { roomsById: rest };
+        }),
+
+      // Die Firmware setzt beim Löschen eines Raums die roomId der betroffenen
+      // Rollos und Gruppen zurück und schickt dafür Events. Läuft der Socket
+      // gerade nicht, zieht die App denselben Schritt lokal nach — das Ergebnis
+      // ist dasselbe, die Events sind damit unschädlich.
+      clearRoomAssignment: (roomId) =>
+        set((state) => {
+          const shadesById = { ...state.shadesById };
+          for (const shade of Object.values(shadesById)) {
+            if (shade.roomId === roomId) shadesById[shade.shadeId] = { ...shade, roomId: 0 };
+          }
+          const groupsById = { ...state.groupsById };
+          for (const group of Object.values(groupsById)) {
+            if (group.roomId === roomId) groupsById[group.groupId] = { ...group, roomId: 0 };
+          }
+          return { shadesById, groupsById };
+        }),
+
+      // Die *SortOrder-Routen der Firmware setzen sortOrder nur im RAM, ohne
+      // emitState — es kommt also kein Event zurück, das die App übernehmen könnte.
+      applySortOrder: (kind, ids) =>
+        set((state) => {
+          if (kind === 'rooms') {
+            const roomsById = { ...state.roomsById };
+            ids.forEach((id, index) => {
+              const room = roomsById[id];
+              if (room) roomsById[id] = { ...room, sortOrder: index };
+            });
+            return { roomsById };
+          }
+          if (kind === 'groups') {
+            const groupsById = { ...state.groupsById };
+            ids.forEach((id, index) => {
+              const group = groupsById[id];
+              if (group) groupsById[id] = { ...group, sortOrder: index };
+            });
+            return { groupsById };
+          }
+          const shadesById = { ...state.shadesById };
+          ids.forEach((id, index) => {
+            const shade = shadesById[id];
+            if (shade) shadesById[id] = { ...shade, sortOrder: index };
+          });
+          return { shadesById };
         }),
 
       setMemory: (memory) =>
