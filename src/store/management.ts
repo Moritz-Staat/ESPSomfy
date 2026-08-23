@@ -26,7 +26,10 @@ export async function deleteShade(shadeId: number): Promise<void> {
 }
 
 export async function createRoom(name: string): Promise<Room> {
-  const room = await getApi().endpoints.addRoom({ name });
+  // sortOrder gleich mitgeben, sonst landen neue Räume alle auf 0 und die
+  // Reihenfolge im Dashboard hängt von der Objektreihenfolge ab.
+  const sortOrder = Object.keys(useAppStore.getState().roomsById).length;
+  const room = await getApi().endpoints.addRoom({ name, sortOrder });
   useAppStore.getState().applyRoomState(room);
   return room;
 }
@@ -47,7 +50,8 @@ export async function deleteRoom(roomId: number): Promise<void> {
 }
 
 export async function createGroup(name: string): Promise<Group> {
-  const group = await getApi().endpoints.addGroup({ name });
+  const sortOrder = Object.keys(useAppStore.getState().groupsById).length;
+  const group = await getApi().endpoints.addGroup({ name, sortOrder });
   useAppStore.getState().applyGroupState(group);
   return group;
 }
