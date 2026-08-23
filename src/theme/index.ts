@@ -47,6 +47,10 @@ export interface ThemeColors {
   error: string;
   /** Fehlertext auf Canvas (error selbst hat auf hellem Creme nur 3.6:1). */
   errorText: string;
+  /** Label auf der error-Fläche (destruktive Schaltflächen). */
+  onError: string;
+  /** Abdunklung hinter Dialogen — bewusst rgba, keine Textfarbe. */
+  overlay: string;
 }
 
 export interface CardStyle {
@@ -97,6 +101,9 @@ const lightColors: ThemeColors = {
   warning: '#f59e0b',
   error: '#ef4444',
   errorText: '#b91c1c',
+  onError: INK,
+  // Im Hellen genügt eine mäßige Abdunklung, der Canvas ist ohnehin hell.
+  overlay: 'rgba(10, 10, 10, 0.35)',
 };
 
 export const lightTheme: Theme = {
@@ -139,6 +146,9 @@ const darkColors: ThemeColors = {
   warning: '#f59e0b',
   error: '#ef4444',
   errorText: '#ef4444',
+  onError: INK,
+  // Im Dunkeln muss der Backdrop kräftiger sein, sonst verschwimmt er mit dem Canvas.
+  overlay: 'rgba(0, 0, 0, 0.6)',
 };
 
 export const darkTheme: Theme = {

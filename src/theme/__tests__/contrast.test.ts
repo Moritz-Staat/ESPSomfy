@@ -35,6 +35,13 @@ function textCombos(t: Theme): [string, string, string][] {
     ['muted auf surfaceSoft (Platzhalter)', c.muted, c.surfaceSoft],
     ['onAction auf action (Buttons)', c.onAction, c.action],
     ['errorText auf canvas (Fehlertext)', c.errorText, c.canvas],
+    // Dialoge und Formulare (Sheet, ConfirmDialog, OptionList, Button-Varianten).
+    ['body auf canvas (Dialogtext)', c.body, c.canvas],
+    ['onError auf error (destruktive Schaltfläche)', c.onError, c.error],
+    ['bodyStrong auf surfaceStrong (sekundäre Schaltfläche)', c.bodyStrong, c.surfaceStrong],
+    ['ink auf surfaceStrong (gewählte Option)', c.ink, c.surfaceStrong],
+    ['body auf surfaceStrong (Zusatz zur gewählten Option)', c.body, c.surfaceStrong],
+    ['body auf surfaceSoft (Zusatz zur Option)', c.body, c.surfaceSoft],
   ];
 }
 
