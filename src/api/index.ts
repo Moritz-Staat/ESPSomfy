@@ -8,18 +8,32 @@ export * from './client';
 export * from './endpoints';
 export * from './storage';
 
-// App-weite Singleton-Instanz; wird beim Verbinden (Verbindungs-Screen) konfiguriert.
-let instance: { client: ApiClient; endpoints: Endpoints; auth: AuthManager } | null = null;
+// Lesen und Fahrbefehle laufen über den API-Server, die gesamte Verwaltung über den
+// Web-UI-Server. Beide teilen sich Token und Anmeldedaten (der apiKey ist ein HMAC
+// über Credentials und Client-IP, nicht über den Port).
+export const API_PORT = 8081;
+export const CONFIG_PORT = 80;
 
-export function configureApi(baseUrl: string): { client: ApiClient; endpoints: Endpoints } {
+export interface ApiInstance {
+  client: ApiClient;
+  configClient: ApiClient;
+  endpoints: Endpoints;
+  auth: AuthManager;
+}
+
+// App-weite Singleton-Instanz; wird beim Verbinden (Verbindungs-Screen) konfiguriert.
+let instance: ApiInstance | null = null;
+
+export function configureApi(host: string): ApiInstance {
   const auth = new AuthManager(secureStore);
-  const client = new ApiClient({ baseUrl, auth });
-  instance = { client, endpoints: new Endpoints(client), auth };
+  const client = new ApiClient({ baseUrl: `http://${host}:${API_PORT}`, auth });
+  const configClient = new ApiClient({ baseUrl: `http://${host}:${CONFIG_PORT}`, auth });
+  instance = { client, configClient, endpoints: new Endpoints(client, configClient), auth };
   return instance;
 }
 
-export function getApi(): { client: ApiClient; endpoints: Endpoints; auth: AuthManager } {
-  if (!instance) throw new Error('API nicht konfiguriert — configureApi(baseUrl) zuerst aufrufen');
+export function getApi(): ApiInstance {
+  if (!instance) throw new Error('API nicht konfiguriert — configureApi(host) zuerst aufrufen');
   return instance;
 }
 

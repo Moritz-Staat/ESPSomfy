@@ -132,17 +132,28 @@ export class ApiClient {
 
   private async parseResponse<T>(res: Response): Promise<T> {
     const text = await res.text();
+    let parsed: unknown;
+    let parseFailed = false;
+    try {
+      parsed = text ? JSON.parse(text) : undefined;
+    } catch {
+      // Kein JSON-Body (z. B. "Unauthorized API Key").
+      parseFailed = true;
+    }
+
     if (!res.ok) {
-      // Firmware-Fehler kommen als HTTP 500 mit {"status":"ERROR","desc":"..."}.
-      let desc: string | undefined;
-      try {
-        desc = (JSON.parse(text) as FirmwareError).desc;
-      } catch {
-        // Kein JSON-Body (z. B. "Unauthorized API Key").
-      }
+      // Firmware-Fehler kommen üblicherweise als HTTP 500 mit {"status":"ERROR","desc":"..."}.
+      // Ausnahme: /deleteShade antwortet mit 400, wenn das Rollo in einer Gruppe ist.
+      const desc = parseFailed ? undefined : (parsed as FirmwareError | undefined)?.desc;
       throw new ApiError(desc ?? `HTTP ${res.status}`, res.status, desc);
     }
-    return (text ? JSON.parse(text) : undefined) as T;
+
+    // Die *SortOrder-Routen melden einen abgelehnten Aufruf mit HTTP 201 und
+    // {"status":"ERROR"} — ein 2xx-Status, der ohne diese Prüfung als Erfolg durchginge.
+    const err = asFirmwareError(parsed);
+    if (err) throw new ApiError(err.desc ?? `HTTP ${res.status}`, res.status, err.desc);
+
+    return parsed as T;
   }
 
   private acquireSlot(): Promise<void> {
@@ -167,4 +178,13 @@ export class ApiClient {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Erkennt eine Fehlerantwort, die trotz 2xx-Status im Rumpf steht. Erfolgsantworten
+// tragen entweder gar kein status-Feld (Shade, Room, Group) oder "SUCCESS"/"OK".
+function asFirmwareError(body: unknown): FirmwareError | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const status = (body as { status?: unknown }).status;
+  if (typeof status !== 'string' || status.toUpperCase() !== 'ERROR') return null;
+  return body as FirmwareError;
 }

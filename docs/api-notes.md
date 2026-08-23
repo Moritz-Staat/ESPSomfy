@@ -44,3 +44,37 @@ Aufgenommen am 2026-07-31 gegen `192.168.178.99`.
   → Lange frame-lose Phasen sind im Leerlauf **normal**. Ein Watchdog „kein Daten-Frame in 60 s ⇒ Verbindung tot" würde gesunde Verbindungen abreißen.
   → Der Client nutzt stattdessen WebSocket-Protokoll-Pings (Pong-Antwort ist RFC-Pflicht) als Lebenszeichen; ausbleibende Pongs lösen den Reconnect aus.
 - Keine Authentifizierung am Socket — bestätigt.
+
+## Routenverteilung auf zwei Server (Quelle: `Web.cpp`, Firmware v2.4.6)
+
+Nachgetragen am 2026-08-23 bei der Planung der Verwaltungsfunktionen.
+
+Die Firmware betreibt zwei getrennte Webserver: `apiServer` auf **Port 8081** und `server` auf **Port 80** (`Web.cpp:41-42`). Sie bedienen **unterschiedliche Routen**.
+
+Auf **8081** registriert (`Web.cpp:1066-1084`), mehr nicht:
+
+`/discovery`, `/rooms`, `/shades`, `/groups`, `/login`, `/controller`, `/shadeCommand`, `/groupCommand`, `/tiltCommand`, `/repeatCommand`, `/room` (nur GET), `/shade` (nur GET), `/group` (nur GET), `/setPositions`, `/setSensor`, `/downloadFirmware`, `/backup`, `/reboot`
+
+Sämtliche **Verwaltung läuft ausschließlich über Port 80**:
+
+`/saveShade`, `/saveRoom`, `/saveGroup`, `/addShade`, `/addRoom`, `/addGroup`, `/deleteShade`, `/deleteRoom`, `/deleteGroup`, `/linkToGroup`, `/unlinkFromGroup`, `/shadeSortOrder`, `/roomSortOrder`, `/groupSortOrder`, `/setMyPosition`
+
+→ Die App hält deshalb zwei `ApiClient`-Instanzen mit gemeinsamem `AuthManager`. `/login` gibt es auf beiden Ports, der Token ist portunabhängig (HMAC über Credentials und Client-IP).
+
+> Vor dieser Erkenntnis zeigten `saveShade`, `saveRoom` und `saveGroup` auf `PUT /shade`, `/room` und `/group` auf Port 8081. Dort ist jeweils nur `HTTP_GET` gebunden — die Aufrufe konnten nie funktionieren.
+
+## Eigenheiten der Verwaltungsrouten
+
+1. **`/shadeSortOrder`, `/roomSortOrder`, `/groupSortOrder` erwarten ein nacktes JSON-Array** (`[3,1,2]`), kein Objekt. `sortOrder` wird in Array-Reihenfolge vergeben, beginnend bei 0. Übersprungen werden die Platzhalter-Ids (`roomId 0`, `shadeId 255`, `groupId 255`).
+2. **Dieselben Routen antworten bei falscher HTTP-Methode mit HTTP 201** und `{"status":"ERROR","desc":"Invalid HTTP Method: "}` — ein Erfolgsstatus mit Fehlerinhalt. Der Client wertet deshalb bei jeder Antwort zusätzlich das `status`-Feld aus und wirft bei `ERROR` einen `ApiError`, unabhängig vom HTTP-Code.
+3. **Die SortOrder-Handler rufen kein `save()` auf**, anders als `/saveRoom` und `/saveShade`. Die Reihenfolge steht damit zunächst nur im RAM. Ob sie einen Neustart übersteht, ist am Gerät zu prüfen.
+4. **`/deleteShade` antwortet mit HTTP 400** (nicht 500), wenn das Rollo Mitglied einer Gruppe ist: `This shade is a member of a group and cannot be deleted.`
+5. **`/linkToGroup` und `/unlinkFromGroup` behandeln `shadeId 0` als „nicht angegeben"** und lehnen mit HTTP 500 ab. Ein Rollo mit Id 0 lässt sich über diese Routen nicht zuordnen.
+6. **`/addRoom` und `/addGroup` antworten mit dem angelegten Objekt**, inklusive der vergebenen Id. Bei Überschreitung von `SOMFY_MAX_ROOMS` beziehungsweise `SOMFY_MAX_GROUPS` kommt HTTP 500.
+7. **`/setMyPosition`** nimmt `shadeId`, `pos` und `tilt` wahlweise als Query-Parameter oder im Rumpf. Für den Favoriten reicht jedoch `/setPositions` auf Port 8081 — die App nutzt den kürzeren Weg.
+
+## Sicherung greift in v2.4.6 nicht
+
+`Web::isAuthenticated()` ist deklariert (`Web.h:43`) und implementiert (`Web.cpp:79`), wird aber **an keiner einzigen Route aufgerufen**. Unabhängig von `authType` sind damit alle Routen ohne `apikey`-Header erreichbar.
+
+Für die App ohne Folgen — sie schickt den Token weiterhin mit, und der Auto-Relogin bei 401/403 bleibt als Absicherung für künftige Firmware-Versionen bestehen. Beim Betrieb außerhalb des eigenen Netzes ist der Befund allerdings zu beachten: die Sicherung des Geräts ersetzt keinen Netzzugriffsschutz.
