@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -18,6 +18,7 @@ export default function ShadeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const shade = useAppStore((s) => s.shadesById[Number(id)]);
   const theme = useTheme();
+  const router = useRouter();
   const [favoriteOpen, setFavoriteOpen] = useState(false);
 
   if (!shade) {
@@ -55,6 +56,17 @@ export default function ShadeDetail() {
           headerStyle: { backgroundColor: card.bg },
           headerTintColor: card.fg,
           headerTitleStyle: { color: card.fg },
+          headerRight: () => (
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/shade/[id]/edit', params: { id: shade.shadeId } })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Rollo bearbeiten"
+            >
+              <Text style={[styles.headerAction, { color: card.fg }]}>Bearbeiten</Text>
+            </Pressable>
+          ),
         }}
       />
       <ConnectionBar />
@@ -157,6 +169,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxxl,
   },
   buttons: { flexDirection: 'row', gap: spacing.m, marginTop: spacing.xl },
+  headerAction: { fontFamily: font.medium, fontSize: 15 },
   favoriteLink: { marginTop: spacing.xl, padding: spacing.s },
   favoriteLinkText: { fontFamily: font.medium, fontSize: 15, textDecorationLine: 'underline' },
 });
