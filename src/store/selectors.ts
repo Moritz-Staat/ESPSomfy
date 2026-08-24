@@ -51,6 +51,14 @@ export function selectRoomSections(state: Pick<AppState, 'shadesById' | 'roomsBy
   return sections;
 }
 
+// Gruppen tragen sortOrder erst, seit die App sie über /groupSortOrder setzt —
+// im Modell ist das Feld deshalb optional. Fehlt es (oder ist es bei allen 0, wie
+// bei einem Gerät, auf dem nie sortiert wurde), entscheidet die groupId, damit die
+// Reihenfolge stabil bleibt statt an der Objektreihenfolge zu hängen.
+export function compareGroups(a: Group, b: Group): number {
+  return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.groupId - b.groupId;
+}
+
 export interface GroupSummary {
   group: Group;
   members: Shade[];
@@ -84,5 +92,5 @@ export function selectGroupSummaries(
         moving: members.some(isMoving),
       };
     })
-    .sort((a, b) => a.group.groupId - b.group.groupId);
+    .sort((a, b) => compareGroups(a.group, b.group));
 }

@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -15,6 +15,7 @@ import {
   saveGroupSettings,
   saveRoomSettings,
 } from '@/store/management';
+import { compareGroups } from '@/store/selectors';
 import { flat, font, radius, spacing, type } from '@/theme/index';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -33,6 +34,7 @@ export default function Settings() {
   const roomsById = useAppStore((s) => s.roomsById);
   const groupsById = useAppStore((s) => s.groupsById);
   const { colors } = useTheme();
+  const router = useRouter();
 
   const [dialog, setDialog] = useState<Dialog>(null);
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,7 @@ export default function Settings() {
     [roomsById]
   );
   const groups = useMemo(
-    () => (Object.values(groupsById) as Group[]).sort((a, b) => a.groupId - b.groupId),
+    () => (Object.values(groupsById) as Group[]).sort(compareGroups),
     [groupsById]
   );
   const shades = useMemo(
@@ -171,6 +173,19 @@ export default function Settings() {
             {groupsFull ? `Höchstzahl erreicht (${LIMITS.maxGroups} Gruppen)` : '+ Gruppe anlegen'}
           </Text>
         </Pressable>
+
+        <Text style={[styles.sectionHeader, styles.secondSection, { color: colors.ink }]}>
+          Reihenfolge
+        </Text>
+        <Text style={[styles.empty, { color: colors.muted }]}>
+          Rollos, Räume und Gruppen lassen sich neu anordnen. Die Reihenfolge liegt im
+          Gerät und gilt damit auch für das Web-UI.
+        </Text>
+        <Button
+          label="Reihenfolge ändern"
+          variant="secondary"
+          onPress={() => router.push('/sort')}
+        />
       </ScrollView>
 
       {dialog?.kind === 'addRoom' && (
