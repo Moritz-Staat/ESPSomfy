@@ -107,3 +107,39 @@ Es gibt also **keinen eigenen Löschbefehl**: Gelöscht wird, indem die aktuelle
 - **`pos` außerhalb 0–100 bewirkt nichts.** Der Web-Handler prüft `if(pos >= 0 && pos <= 100)` vor dem Aufruf — die Antwort kommt trotzdem, weil die Zeilen darunter nicht geklammert sind (`Web.cpp:1552`).
 - **Bleibt `tilt` weg, setzt die Firmware `tilt = shade->myPos`** — den Wert der *Fahr*achse (`Web.cpp:1550`). Das sieht nach einem Versehen aus (gemeint war vermutlich `myTiltPos`). Bei Rollos mit Lamellen deshalb immer beide Werte senden.
 - Bei `tiltType == none` setzt die Firmware `tilt` selbst auf -1; dort genügt `{shadeId, pos}`.
+
+## Diagnose: Telemetrie und Wartungsrouten
+
+Nachgetragen am 2026-08-24 bei der Umsetzung des Diagnose-Screens.
+
+### Die Telemetrie-Events haben keinen festen Takt
+
+`Network::loop()` prüft alle 1500 ms (`Network.cpp:139`), sendet aber nur bei Änderungen:
+
+- **`wifiStrength`** nur, wenn sich `RSSI` um **mehr als 1 dBm** oder der Kanal geändert hat (`Network.cpp:172`). Bei stabilem Empfang kann minutenlang nichts kommen. Ohne WLAN-Verbindung schickt die Firmware den Ersatzwert `{"ssid":"","strength":-100,"channel":-1}` (`Network.cpp:200`) — `-100` ist also nicht „sehr schwach", sondern „keine Verbindung".
+- **`memStatus`** nur, wenn `freeHeap` oder `maxAllocHeap` sich um mehr als 1500 Bytes bewegt haben, und dann höchstens alle 7 s; unabhängig davon spätestens alle 15 s (`Network.cpp:673-695`).
+- **`ethernet`** kommt auf Geräten mit LAN-Anschluss und zusätzlich als Abmeldung (`connected:false`), wenn das WLAN wegbricht.
+
+→ Ein Verlaufsdiagramm über diese Werte zeigt **Ereignisse, keine gleichmäßigen Abtastwerte**. Die App stempelt jeden Messpunkt beim Eintreffen und hält 400 Stück im Speicher; persistiert wird der Verlauf nicht.
+
+→ Beim Verbinden eines neuen Socket-Clients schickt die Firmware einmalig alles (`SocketEmitter::initClients`, `Sockets.cpp:106-121`) — Einstellungen, Rollos, Update-Stand und Netzwerkstatus.
+
+### `/reboot` verlangt PUT oder POST
+
+Auf ein **GET** antwortet der Handler mit **HTTP 201 und `{"status":"ERROR","desc":"Invalid HTTP Method: "}`** und startet nicht neu (`Web.cpp:1044-1057`) — wieder ein 2xx-Status mit Fehlerinhalt, den nur die `asFirmwareError`-Prüfung im Client abfängt. Der Neustart selbst läuft verzögert (`rebootTime = millis() + 500`), die Antwort kommt also noch heraus.
+
+### `/backup` liefert eine Datei, kein JSON-Objekt
+
+`handleBackup` schreibt erst `controller.backup` und streamt sie dann als `text/plain` (`Web.cpp:832-866`). Auf Port 80 hängt das Web-UI über `attach=true` einen `Content-Disposition`-Header mit Zeitstempel an; auf **8081 ist `attach` per Default `false`** (`Web.h:32`), der Header fehlt dort also.
+
+→ Die App holt die Antwort über `ApiClient.getText()` unverändert ab. Durch `JSON.parse` und `JSON.stringify` gedreht käme eine andere Datei heraus als die, die das Web-UI herunterlädt; der Dateiname wird nach demselben Muster selbst gebildet (`ESPSomfyRTS <ISO> .backup`, Doppelpunkte durch `_` ersetzt).
+
+→ `/restore` gibt es nur auf Port 80 (Multipart-Upload) und bietet die App bewusst nicht an: Es ersetzt die **gesamte** Konfiguration und startet das Gerät anschließend neu (`Web.cpp:1155`). Das gehört vor das Gerät, nicht auf ein Handy unterwegs.
+
+> Die Rollcodes nimmt ein Restore übrigens **nicht** mit zurück: `ShadeConfigFile::restore` setzt `lastRollingCode = max(nvs, backup)` und schreibt einen höheren Wert ins NVS zurück (`ConfigFile.cpp:809-816`). Ein alter Rollcode aus der Sicherung kann die Motoren also nicht aus dem Tritt bringen — die naheliegende Begründung gegen ein Restore in der App trägt nicht, die oben genannte schon.
+
+### Update-Anzeige
+
+`/discovery` liefert `version` und `latest` als fertige Strings sowie `checkForUpdate`. Steht `checkForUpdate` auf `false`, prüft das Gerät gar nicht — dann ist `latest` kein belastbarer Wert und die App behauptet kein Update. Das Einspielen selbst (`/downloadFirmware`) bleibt draußen: Ein unterwegs abgebrochenes OTA-Update kann das Gerät unbrauchbar machen.
+
+`connType` ist ein String aus genau drei Werten: `"Wifi"`, `"Ethernet"` oder `"Unknown"` (`Web.cpp:793-795`).

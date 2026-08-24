@@ -123,8 +123,10 @@ export class Endpoints {
     return this.client.put('/setSensor', req);
   }
 
+  // Liefert den Inhalt von /controller.backup als Text. Ohne ?attach=true bleibt
+  // der Content-Disposition-Header weg — die App benennt die Datei selbst.
   backup(): Promise<string> {
-    return this.client.get('/backup');
+    return this.client.getText('/backup');
   }
 
   reboot(): Promise<void> {

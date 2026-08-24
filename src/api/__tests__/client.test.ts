@@ -100,6 +100,25 @@ describe('ApiClient', () => {
     expect(attempts).toBe(1);
   });
 
+  test('getText reicht die Antwort unverändert durch', async () => {
+    // /backup streamt eine Datei. Durch JSON.parse und JSON.stringify gedreht käme
+    // eine andere Datei heraus als die, die das Web-UI herunterlädt.
+    const body = '{\n  "shades": [],\n  "rooms": []\n}\n';
+    const fetchFn = jest.fn(
+      async () => new Response(body, { status: 200, headers: { 'Content-Type': 'text/plain' } })
+    ) as unknown as typeof fetch;
+    const { client } = makeClient(fetchFn);
+    expect(await client.getText('/backup')).toBe(body);
+  });
+
+  test('getText meldet einen HTTP-Fehler als ApiError', async () => {
+    const fetchFn = jest.fn(
+      async () => new Response('shades.cfg', { status: 500 })
+    ) as unknown as typeof fetch;
+    const { client } = makeClient(fetchFn);
+    await expect(client.getText('/backup')).rejects.toBeInstanceOf(ApiError);
+  });
+
   test('Request-Queue: maximal 2 Requests gleichzeitig', async () => {
     let inFlight = 0;
     let maxInFlight = 0;

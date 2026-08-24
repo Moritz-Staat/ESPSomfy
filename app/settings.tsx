@@ -186,6 +186,19 @@ export default function Settings() {
           variant="secondary"
           onPress={() => router.push('/sort')}
         />
+
+        <Text style={[styles.sectionHeader, styles.secondSection, { color: colors.ink }]}>
+          Diagnose
+        </Text>
+        <Text style={[styles.empty, { color: colors.muted }]}>
+          Gerätestatus, Speicher und Signalstärke — der Screen, den man aufmacht, wenn
+          etwas klemmt. Dort liegen auch Sicherung und Neustart.
+        </Text>
+        <Button
+          label="Diagnose öffnen"
+          variant="secondary"
+          onPress={() => router.push('/diagnostics')}
+        />
       </ScrollView>
 
       {dialog?.kind === 'addRoom' && (

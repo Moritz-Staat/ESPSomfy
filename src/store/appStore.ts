@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
   DiscoveryResponse,
+  EthernetEvent,
   Group,
   GroupPatch,
   MemoryStatus,
@@ -12,6 +13,7 @@ import {
   SecurityType,
   Shade,
   ShadePatch,
+  WifiSample,
   WifiStrengthEvent,
 } from '@/models/index';
 import { ConnectionStatus } from '@/socket/connection';
@@ -19,13 +21,25 @@ import { ConnectionStatus } from '@/socket/connection';
 export interface DeviceInfo {
   serverId: string;
   version: string;
+  /** Neueste Version im GitHub-Repo der Firmware; gleich version, wenn aktuell. */
+  latest: string;
   model: string;
   hostname: string;
+  chipModel: string;
+  /** "wifi" oder "ethernet" — die Firmware kennt beides. */
+  connType: string;
+  checkForUpdate: boolean;
   authType: SecurityType;
   permissions: number;
   memory?: MemoryStatus;
   wifi?: WifiStrengthEvent;
+  ethernet?: EthernetEvent;
 }
+
+// So viele RSSI-Messpunkte hält der Verlauf. Die Firmware sendet höchstens alle
+// 1,5 s einen — das reicht für gut zehn Minuten und bleibt klein genug, um bei
+// jedem Event eine neue Liste zu erzeugen.
+export const WIFI_HISTORY_SIZE = 400;
 
 // Felder, die optimistisch vorweggenommen werden dürfen — Fahrt wie Tilt.
 export type OptimisticFields = Pick<
@@ -48,6 +62,8 @@ export interface AppState {
   groupsById: Record<number, Group>;
   roomsById: Record<number, Room>;
   device: DeviceInfo | null;
+  /** Verlauf der RSSI-Werte, ältester zuerst. Bewusst flüchtig (nicht persistiert). */
+  wifiHistory: WifiSample[];
   host: string | null;
   connectionStatus: ConnectionStatus;
   hydrated: boolean;
@@ -69,6 +85,7 @@ export interface AppState {
   applySortOrder(kind: 'shades' | 'rooms' | 'groups', ids: number[]): void;
   setMemory(memory: MemoryStatus): void;
   setWifi(wifi: WifiStrengthEvent): void;
+  setEthernet(ethernet: EthernetEvent): void;
 
   // Optimistic Update: die geänderten Felder sofort lokal setzen; kommt binnen 3 s
   // kein bestätigendes shadeState, wird der Schnappschuss zurückgerollt. Socket-Events
@@ -99,6 +116,7 @@ export const useAppStore = create<AppState>()(
       groupsById: {},
       roomsById: {},
       device: null,
+      wifiHistory: [],
       host: null,
       connectionStatus: 'offline',
       hydrated: false,
@@ -116,12 +134,19 @@ export const useAppStore = create<AppState>()(
           device: {
             serverId: discovery.serverId,
             version: discovery.version,
+            latest: discovery.latest,
             model: discovery.model,
             hostname: discovery.hostname,
+            chipModel: discovery.chipModel,
+            connType: discovery.connType,
+            checkForUpdate: discovery.checkForUpdate,
             authType: discovery.authType,
             permissions: discovery.permissions,
             memory: discovery.memory,
+            // Socket-Werte überleben ein erneutes Discovery: Sie kommen nur, wenn
+            // sich etwas ändert, und wären sonst bis zum nächsten Event leer.
             wifi: get().device?.wifi,
+            ethernet: get().device?.ethernet,
           },
           hydrated: true,
         });
@@ -218,7 +243,20 @@ export const useAppStore = create<AppState>()(
         set((state) => (state.device ? { device: { ...state.device, memory } } : {})),
 
       setWifi: (wifi) =>
-        set((state) => (state.device ? { device: { ...state.device, wifi } } : {})),
+        set((state) => {
+          // Der Verlauf wächst auch dann, wenn noch kein Discovery gelaufen ist —
+          // er hängt nicht am Geräteobjekt.
+          const wifiHistory = [...state.wifiHistory, { at: Date.now(), strength: wifi.strength }];
+          if (wifiHistory.length > WIFI_HISTORY_SIZE) {
+            wifiHistory.splice(0, wifiHistory.length - WIFI_HISTORY_SIZE);
+          }
+          return state.device
+            ? { device: { ...state.device, wifi }, wifiHistory }
+            : { wifiHistory };
+        }),
+
+      setEthernet: (ethernet) =>
+        set((state) => (state.device ? { device: { ...state.device, ethernet } } : {})),
 
       applyOptimistic: (shadeId, change) => {
         const shade = get().shadesById[shadeId];

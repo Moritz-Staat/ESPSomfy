@@ -1,4 +1,5 @@
 import {
+  EthernetEvent,
   GroupPatch,
   MemoryStatus,
   normalizeShadeState,
@@ -42,8 +43,10 @@ export function dispatchSocketFrame(frame: SocketFrame): void {
     case 'wifiStrength':
       store.setWifi(frame.payload as WifiStrengthEvent);
       break;
-    case 'shadeCommand':
     case 'ethernet':
+      store.setEthernet(frame.payload as EthernetEvent);
+      break;
+    case 'shadeCommand':
     case 'fwStatus':
     case 'updateProgress':
     case 'frequencyScan':
