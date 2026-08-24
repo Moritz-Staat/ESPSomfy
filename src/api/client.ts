@@ -63,6 +63,21 @@ export class ApiClient {
     return this.requestWithRetry<T>(path, { method: 'GET' });
   }
 
+  // Antwort unverändert als Text. /backup streamt eine Datei, die genau so
+  // gespeichert werden soll — durch JSON.parse und JSON.stringify gedreht käme
+  // eine andere Datei heraus als die, die das Web-UI herunterlädt.
+  async getText(path: string): Promise<string> {
+    await this.acquireSlot();
+    try {
+      const res = await this.doFetch(path, { method: 'GET' });
+      const text = await res.text();
+      if (!res.ok) throw new ApiError(`HTTP ${res.status}`, res.status);
+      return text;
+    } finally {
+      this.releaseSlot();
+    }
+  }
+
   async put<T>(path: string, body?: unknown): Promise<T> {
     return this.request<T>(path, { method: 'PUT', body });
   }

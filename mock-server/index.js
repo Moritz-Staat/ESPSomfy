@@ -161,7 +161,7 @@ wss.on('connection', (socket) => {
   socket.send('Connected');
   for (const shade of shades) socket.send(frame('shadeState', shadeStateBody(shade)));
   socket.send(frame('fwStatus', samples.controller.version));
-  socket.send(frame('wifiStrength', { ssid: 'MockNetz', strength: -42, channel: 1 }));
+  socket.send(frame('wifiStrength', { ssid: 'MockNetz', strength: rssi, channel: 1 }));
   socket.send(frame('memStatus', samples.discovery.memory));
 
   if (mode === 'socketdrop') {
@@ -175,6 +175,25 @@ wss.on('connection', (socket) => {
     }, 1000);
   }
 });
+
+// --- Telemetrie --------------------------------------------------------------
+// Die Firmware prueft alle 1,5 s und sendet wifiStrength nur bei einer Aenderung
+// von mehr als 1 dBm (Network.cpp:172). Ein realer RSSI zappelt genug, dass dabei
+// fast jedes Mal ein Event herauskommt - der Zufallslauf hier bildet das nach.
+let rssi = -42;
+let lastRssi = rssi;
+let heapFree = samples.discovery.memory.free;
+
+setInterval(() => {
+  if (wss.clients.size === 0) return;
+  rssi = Math.max(-92, Math.min(-38, rssi + Math.round((Math.random() - 0.5) * 8)));
+  if (Math.abs(rssi - lastRssi) > 1) {
+    broadcast('wifiStrength', { ssid: 'MockNetz', strength: rssi, channel: 1 });
+    lastRssi = rssi;
+  }
+  heapFree = Math.max(20000, Math.min(samples.discovery.memory.total, heapFree + Math.round((Math.random() - 0.5) * 6000)));
+  broadcast('memStatus', { ...samples.discovery.memory, free: heapFree });
+}, 1500);
 
 // --- Fahrsimulation ----------------------------------------------------------
 
@@ -325,7 +344,7 @@ function handleSetMyPosition(shade, body) {
 }
 
 // Routen des API-Servers (Port 8081).
-function handleApiRoute(url, body, res) {
+function handleApiRoute(url, body, res, method) {
   switch (url.pathname) {
     case '/discovery':
       return json(res, 200, currentDiscovery());
@@ -370,6 +389,21 @@ function handleApiRoute(url, body, res) {
       if (!shade) return notFound(res);
       return json(res, 200, shade);
     }
+    // Streamt eine Datei als text/plain, kein JSON - deshalb hier nicht json().
+    case '/backup': {
+      const payload = JSON.stringify({ shades, rooms, groups }, null, 2);
+      res.writeHead(200, { 'Content-Type': 'text/plain', apikey: samples.login.apiKey });
+      return res.end(payload);
+    }
+    // Wie Web.cpp:1044: nur PUT/POST starten neu, GET bekommt 201 mit status ERROR.
+    case '/reboot':
+      if (method !== 'PUT' && method !== 'POST') {
+        return json(res, 201, { status: 'ERROR', desc: 'Invalid HTTP Method: ' });
+      }
+      setTimeout(() => {
+        for (const client of wss.clients) client.terminate();
+      }, 300);
+      return json(res, 200, { status: 'OK', desc: 'Successfully started reboot' });
     default:
       return unknownRoute(res, url);
   }
@@ -563,7 +597,7 @@ function makeServer(port, route) {
       if (mode === 'error500') {
         return json(res, 500, { status: 'ERROR', desc: 'Mock-Fehlermodus aktiv' });
       }
-      return route(url, body, res);
+      return route(url, body, res, req.method);
     });
   });
 }

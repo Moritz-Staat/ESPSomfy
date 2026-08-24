@@ -78,9 +78,25 @@ export interface FirmwareError {
   desc: string;
 }
 
-// Socket-Event `wifiStrength`.
+// Socket-Event `wifiStrength`. Die Firmware sendet es nur, wenn sich RSSI um mehr
+// als 1 dBm oder der Kanal geändert hat (Network.cpp:172) — kein fester Takt.
+// Ohne Verbindung kommt ssid "" mit strength -100 und channel -1.
 export interface WifiStrengthEvent {
   ssid: string;
   strength: number;
   channel: number;
+}
+
+// Socket-Event `ethernet` (Network.cpp:181). Kommt nur auf Geräten mit LAN-Anschluss
+// und zusätzlich als Abmeldung, wenn das WLAN wegbricht.
+export interface EthernetEvent {
+  connected: boolean;
+  speed: number;
+  fullduplex: boolean;
+}
+
+/** Ein RSSI-Messpunkt mit dem Zeitpunkt seines Eintreffens (Date.now()). */
+export interface WifiSample {
+  at: number;
+  strength: number;
 }
