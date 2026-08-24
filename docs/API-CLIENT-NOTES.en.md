@@ -26,6 +26,10 @@ Endpoints available on 8081: `/discovery`, `/rooms`, `/shades`, `/groups`, `/log
 complete `rooms`, `shades` and `groups` arrays in a single request — useful given the
 ESP32's limited heap.
 
+**Every configuration route lives on port 80 only** — see section 10. A client that talks
+to 8081 alone can read and drive shades, but cannot create, rename, delete or reorder
+anything.
+
 ---
 
 ## 1. WebSocket frames are not valid JSON
@@ -171,6 +175,130 @@ Application-level errors are returned as:
 ```
 
 with status code **500**, not 4xx. Clients should parse `desc` for a usable message.
+
+---
+
+## 10. Configuration routes exist on port 80 only
+
+The firmware runs two independent web servers (`Web.cpp:41-42`) with **different route
+tables**. Port 8081 carries reading, commands, `/setPositions`, `/setSensor`, `/backup`
+and `/reboot` (`Web.cpp:1066-1084`). Everything else is registered on port 80 only:
+
+`/saveShade`, `/saveRoom`, `/saveGroup`, `/addShade`, `/addRoom`, `/addGroup`,
+`/deleteShade`, `/deleteRoom`, `/deleteGroup`, `/linkToGroup`, `/unlinkFromGroup`,
+`/shadeSortOrder`, `/roomSortOrder`, `/groupSortOrder`, `/setMyPosition`, `/restore`
+
+`/shade`, `/room` and `/group` exist on 8081 but are bound to `HTTP_GET` only — a `PUT`
+there reaches nothing. `/login` exists on both ports and the token is port-independent
+(it is an HMAC over credentials and client IP), so one token serves both clients.
+
+Further details worth knowing:
+
+- The three `*SortOrder` routes expect a **bare JSON array**, not an object, and assign
+  `sortOrder` by array position across the **entire** list submitted. Sending a subset
+  (say, the shades of one room) renumbers everything else.
+- Their handlers set `sortOrder` in RAM without calling `save()` — persistence across a
+  device restart should be verified rather than assumed.
+- `deleteShade` answers **400** if the shade belongs to a group; that is the one route
+  that does not use 500 (see section 9).
+- `deleteRoom` clears `roomId` on affected shades **and groups** (`Somfy.cpp:4052`), so
+  groups carry a `roomId` too.
+- `linkToGroup` sends **no** Prog frame — `SomfyGroup::linkShade` only records the
+  membership. Pairing the motor to the group address is a separate, manual step.
+- `/groupOptions` returns the shades **not yet** linked to the group, not the shades that
+  could be linked.
+- Names are `char[21]`, i.e. **20 usable characters**, for shades, rooms and groups alike.
+
+---
+
+## 11. Some errors arrive with a 2xx status
+
+Section 9 covers the usual case. Two routes break it: `/reboot` and the three
+`*SortOrder` routes answer a wrong HTTP method with **HTTP 201** and
+`{"status":"ERROR","desc":"Invalid HTTP Method: "}` (`Web.cpp:1055`). A client that keys
+success off the status code alone will treat a rejected request as a success.
+
+→ Inspect `status` in the body of **every** response, not just on non-2xx.
+
+`/reboot` accepts `PUT` or `POST` only. The restart is deferred by 500 ms, so the response
+is still delivered.
+
+---
+
+## 12. `/setMyPosition` programs the motor; `/setPositions` does not
+
+`/setPositions` (8081) writes position, tilt and favourite into the ESP's own database.
+The motor never learns about it — use it to correct a drifted estimate, not to change
+anything physical.
+
+`/setMyPosition` (port 80) sends the real Prog frame. One call has three different
+effects depending on state:
+
+| State | Effect |
+|---|---|
+| shade is not at `pos` | it **moves** there; nothing is stored yet |
+| shade is at `pos`, and `pos == myPos` | the favourite is **cleared** |
+| shade is at `pos`, and `pos != myPos` | the favourite is **set** |
+
+There is no separate clear command: clearing means sending the current favourite again.
+
+Two traps: the call is silently ignored while the shade is moving (`if(!this->isIdle())
+return;`) yet still answers 200, and if `tilt` is omitted the firmware assigns
+`tilt = myPos` — the value of the *travel* axis (`Web.cpp:1550`), which looks like a
+typo for `myTiltPos`. Always send both values for shades with slats.
+
+Related: `/tiltCommand` evaluates **either** `command` **or** `target`, never both. For
+`tiltType: tiltonly` the firmware internally redirects Up/Down/My onto the tilt axis.
+
+---
+
+## 13. Telemetry events are change-driven, not periodic
+
+`Network::loop()` evaluates every 1500 ms (`Network.cpp:139`) but emits only on change:
+
+- `wifiStrength` — only when RSSI moved by **more than 1 dBm** or the channel changed
+  (`Network.cpp:172`). With a stable link, minutes can pass without an event. When WiFi is
+  down the firmware sends the placeholder `{"ssid":"","strength":-100,"channel":-1}`
+  (`Network.cpp:200`); `-100` therefore means "no link", not "very weak".
+- `memStatus` — only when free or largest-allocatable heap moved by more than 1500 bytes,
+  and then at most every 7 s; independently of that, at least every 15 s
+  (`Network.cpp:673-695`).
+- `ethernet` — on devices with a LAN port, and additionally as a `connected:false` notice
+  when WiFi drops.
+
+A chart built on these values plots **events, not evenly spaced samples**; timestamp them
+on arrival. On connect, the firmware pushes a full snapshot once
+(`SocketEmitter::initClients`, `Sockets.cpp:106-121`).
+
+`memStatus` is worth surfacing: `max` is the largest allocatable block. When it sits far
+below `free`, the heap is fragmented — the state in which a device crashes despite
+"enough" free memory.
+
+---
+
+## 14. `/backup` streams a file, `/restore` replaces everything
+
+`handleBackup` writes `controller.backup` and streams it as `text/plain`
+(`Web.cpp:832-866`). On port 80 the web UI passes `attach=true` to get a
+`Content-Disposition` header with a timestamp; on **8081 `attach` defaults to `false`**
+(`Web.h:32`), so no such header appears. Treat the response as opaque bytes — parsing and
+re-serialising it produces a different file.
+
+`/restore` (port 80, multipart) replaces the entire configuration and reboots the device.
+It does **not** roll rolling codes backwards: `ShadeConfigFile::restore` applies
+`lastRollingCode = max(nvs, backup)` and writes the higher value back to NVS
+(`ConfigFile.cpp:809-816`).
+
+---
+
+## 15. Authentication is not enforced in v2.4.6
+
+`Web::isAuthenticated()` is declared (`Web.h:43`) and implemented (`Web.cpp:79`) but
+**called from no route**. Regardless of `authType`, every route on both servers answers
+without an `apikey` header.
+
+Clients should still send the token — the behaviour may change — but should not treat the
+device's own security setting as network protection.
 
 ---
 

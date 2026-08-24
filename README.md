@@ -16,17 +16,32 @@ Die App folgt dem Systemthema; Hell und Dunkel teilen sich dieselben Markenfarbe
 |---|---|---|
 | <img src="docs/screenshots/detail-light.png" width="200" alt="Detailansicht mit Positions-Slider, helles Thema"> | <img src="docs/screenshots/detail-dark.png" width="200" alt="Detailansicht mit Positions-Slider, dunkles Thema"> | <img src="docs/screenshots/connect-light.png" width="200" alt="Verbindungs-Screen mit Eingabe der Controller-IP"> |
 
+| Verwalten | Reihenfolge | Diagnose |
+|---|---|---|
+| <img src="docs/screenshots/settings-light.png" width="200" alt="Verwaltung von Räumen und Gruppen"> | <img src="docs/screenshots/sort-light.png" width="200" alt="Reihenfolge der Rollos ändern"> | <img src="docs/screenshots/diagnostics-light.png" width="200" alt="Diagnose mit Gerätestatus, Arbeitsspeicher und WLAN-Signal"> |
+
 ## Funktionen
 
+**Steuern**
+
 - Verbindung zum Controller per IP-Adresse, Login für alle drei Sicherheitsmodi der Firmware (keine Sicherung, PIN, Benutzer/Passwort)
-- Dashboard mit allen Rollos, nach Räumen gruppiert
+- Dashboard mit allen Rollos, nach Räumen gruppiert; Gruppen stehen oben und erreichen alle ihre Motoren mit einem einzigen Funkbefehl
 - Hoch / My / Runter — „My" wechselt kontextabhängig zwischen Stopp (bei Fahrt) und Favoritenposition
 - Positions-Slider für prozentgenaues Anfahren
+- Lamellen als eigene Achse für Rollos mit Tilt, inklusive der Rollos, die *nur* Lamellen haben
+- Favoritenposition im Motor setzen und löschen (`/setMyPosition`)
 - Live-Statusaktualisierung per WebSocket — auch wenn parallel die physische Fernbedienung benutzt wird
 - Automatischer Reconnect mit Backoff, Polling-Fallback, Socket wird im App-Hintergrund geschlossen (Firmware erlaubt max. 5 Socket-Clients)
 - Heller und dunkler Modus, folgt der Systemeinstellung oder wird fest gewählt
 
-**Bewusst nicht in der App:** Pairing, Fernbedienungs-Verwaltung, Repeater, Radio-/Frequenzeinstellungen, Firmware-Updates, Netzwerkkonfiguration. Ein falscher Rolling Code oder eine falsche Frequenz trennt die Motoren — solche Eingriffe gehören ins Web-UI der Firmware.
+**Verwalten** (seit v3)
+
+- Rollos umbenennen, einem Raum zuordnen, löschen
+- Räume und Gruppen anlegen, umbenennen, löschen; Gruppenmitglieder zuordnen
+- Reihenfolge von Rollos, Räumen und Gruppen ändern — sie liegt im Gerät und gilt damit auch für das Web-UI
+- Diagnose: Gerätestatus, Heap mit Warnschwellen und Fragmentierungsgrad, Verlauf der WLAN-Signalstärke, Sicherung herunterladen, Neustart
+
+**Bewusst nicht in der App:** Pairing, Fernbedienungs-Verwaltung, Repeater, Radio-/Frequenzeinstellungen, Firmware-Updates, Netzwerkkonfiguration, Zurückspielen einer Sicherung. Ein falscher Rolling Code oder eine falsche Frequenz trennt die Motoren, ein unterwegs abgebrochenes OTA-Update macht das Gerät unbrauchbar — solche Eingriffe gehören ins Web-UI der Firmware, in Reichweite des Geräts. Ein anstehendes Firmware-Update *zeigt* die App an und verlinkt dorthin.
 
 ## Voraussetzungen
 
@@ -57,9 +72,11 @@ Der ESP32 bietet drei Schnittstellen:
 
 | Port | Zweck |
 |---|---|
-| 80 | Voller Web-/Config-Server (nicht von der App genutzt) |
-| 8081 | Reduzierter API-Server — primäre HTTP-Quelle der App |
+| 80 | Voller Web-/Config-Server — die App nutzt ihn für **sämtliche Verwaltung** |
+| 8081 | Reduzierter API-Server — Lesen, Fahrbefehle, Sicherung, Neustart |
 | 8080 | WebSocket für Live-Status (proprietäres Frameformat `42[event,{...}]`) |
+
+Die Verwaltungsrouten (`/saveShade`, `/addRoom`, `/shadeSortOrder`, `/setMyPosition`, …) sind auf 8081 **nicht** registriert. Die App hält deshalb zwei HTTP-Clients mit gemeinsamem Token.
 
 ```
 app/                 Expo-Router-Screens
@@ -81,6 +98,7 @@ Zentrale Eigenheiten der Firmware (Details in [docs/api-notes.md](docs/api-notes
 - Der API-Token ist an die **Client-IP gebunden** → Auto-Relogin bei 401/403.
 - Max. **5 gleichzeitige Socket-Clients** → Socket wird im App-Hintergrund geschlossen.
 - Positionswerte sind von der Firmware **bereits transformiert** (`flipPosition`) — die App spiegelt nie erneut.
+- Mehrere Routen melden Fehler mit einem **2xx-Status** (`/reboot` und die `*SortOrder`-Routen antworten auf die falsche Methode mit HTTP 201 und `{"status":"ERROR"}`) — der Client prüft deshalb auch bei Erfolg den Rumpf.
 
 ## Entwicklung
 
@@ -90,7 +108,8 @@ Zentrale Eigenheiten der Firmware (Details in [docs/api-notes.md](docs/api-notes
 npm install --legacy-peer-deps
 npm start            # Expo Dev Server
 npm run mock         # Mock-Server (HTTP + WebSocket) ohne Hardware
-npm test             # Jest (34 Tests, u. a. Parser gegen echten Socket-Mitschnitt)
+                     # Verwaltung liegt auf Port 80; unter Windows z. B. MOCK_CONFIG_PORT=8090
+npm test             # Jest (175 Tests, u. a. Parser gegen echten Socket-Mitschnitt)
 npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
 ```

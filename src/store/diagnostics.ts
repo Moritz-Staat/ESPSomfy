@@ -2,8 +2,10 @@ import { File, Paths } from 'expo-file-system';
 import * as Linking from 'expo-linking';
 import * as Sharing from 'expo-sharing';
 
-import { getApi } from '@/api/index';
+import { CONFIG_PORT, getApi } from '@/api/index';
 import { backupFilename } from '@/models/index';
+
+import { useAppStore } from './appStore';
 
 // Aktionen des Diagnose-Screens. Sie fassen den Store nicht an: Ein Backup ändert
 // nichts am Gerätezustand, und was ein Neustart bewirkt, meldet der Socket von
@@ -43,11 +45,19 @@ export async function rebootDevice(): Promise<void> {
   await getApi().endpoints.reboot();
 }
 
-/** Adresse des Web-UI (Port 80) — dieselbe Basis, über die die Verwaltung läuft. */
+/**
+ * Adresse des Web-UI (Port 80) — dieselbe Basis, über die die Verwaltung läuft.
+ * Bewusst aus dem Store statt aus `getApi()`: Die Funktion läuft beim Rendern, und
+ * `getApi()` wirft, solange noch keine Verbindung aufgebaut wurde.
+ */
 export function webUiUrl(): string {
-  return `${getApi().configClient.getBaseUrl()}/`;
+  const host = useAppStore.getState().host;
+  if (!host) return '';
+  // Port 80 gehört nicht in die Adresse — er ist der Standard für http.
+  return CONFIG_PORT === 80 ? `http://${host}/` : `http://${host}:${CONFIG_PORT}/`;
 }
 
 export async function openWebUi(): Promise<void> {
-  await Linking.openURL(webUiUrl());
+  const url = webUiUrl();
+  if (url) await Linking.openURL(url);
 }

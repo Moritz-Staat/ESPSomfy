@@ -1,5 +1,6 @@
 import { DiscoveryResponse, SecurityType } from '@/models/index';
 import { useAppStore, WIFI_HISTORY_SIZE } from '@/store/appStore';
+import { webUiUrl } from '@/store/diagnostics';
 import { dispatchSocketFrame } from '@/store/socketBridge';
 
 function makeDiscovery(overrides: Partial<DiscoveryResponse> = {}): DiscoveryResponse {
@@ -105,5 +106,18 @@ describe('ethernet-Event', () => {
       speed: 100,
       fullduplex: true,
     });
+  });
+});
+
+describe('webUiUrl', () => {
+  test('nennt Port 80 nicht mit — er ist der Standard für http', () => {
+    useAppStore.setState({ host: '192.168.178.99' });
+    expect(webUiUrl()).toBe('http://192.168.178.99/');
+  });
+
+  test('bleibt leer, solange keine Verbindung stand', () => {
+    // Die Funktion läuft beim Rendern des Diagnose-Screens; sie darf dort nicht werfen.
+    useAppStore.setState({ host: null });
+    expect(webUiUrl()).toBe('');
   });
 });
