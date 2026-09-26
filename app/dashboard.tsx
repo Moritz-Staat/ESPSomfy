@@ -2,6 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 
+import { BulkActions } from '@/components/BulkActions';
 import { ConnectionBar } from '@/components/ConnectionBar';
 import { GroupCard } from '@/components/GroupCard';
 import { ShadeCard } from '@/components/ShadeCard';
@@ -52,6 +53,13 @@ export default function Dashboard() {
   const device = useAppStore((s) => s.device);
   const { colors } = useTheme();
   const router = useRouter();
+  // Alle Rollos für die Sammelaktion im Kopf. Gruppen bleiben außen vor: Ihre
+  // Mitglieder stecken schon in dieser Liste, und planBulk zieht die Gruppen
+  // selbst heran, wo sie Funkbefehle sparen.
+  const allShades = useMemo(
+    () => (Object.values(shadesById) as Shade[]).sort((a, b) => a.sortOrder - b.sortOrder),
+    [shadesById]
+  );
   const sections = useMemo<Section[]>(() => {
     // Gruppen zuerst: ein Gruppenbefehl erreicht alle Motoren mit einem einzigen
     // Funkbefehl und ist damit der schnellere Weg als Rollo für Rollo.
@@ -76,6 +84,13 @@ export default function Dashboard() {
             <View style={styles.headerActions}>
               <ThemeToggle />
               <Pressable
+                onPress={() => router.push('/scenes')}
+                accessibilityRole="button"
+                accessibilityLabel="Szenen"
+              >
+                <Text style={[styles.toggle, { color: colors.muted }]}>Szenen</Text>
+              </Pressable>
+              <Pressable
                 onPress={() => router.push('/settings')}
                 accessibilityRole="button"
                 accessibilityLabel="Einstellungen"
@@ -87,6 +102,7 @@ export default function Dashboard() {
         }}
       />
       <ConnectionBar />
+      {allShades.length > 1 && <BulkActions shades={allShades} scopeLabel="allen Räumen" />}
       <SectionList<Shade | GroupSummary, Section>
         sections={sections}
         keyExtractor={(item) =>
@@ -96,7 +112,14 @@ export default function Dashboard() {
           'shadeId' in item ? <ShadeCard shade={item} /> : <GroupCard summary={item} />
         }
         renderSectionHeader={({ section }) => (
-          <Text style={[styles.sectionHeader, { color: colors.ink }]}>{section.title}</Text>
+          <View>
+            <Text style={[styles.sectionHeader, { color: colors.ink }]}>{section.title}</Text>
+            {/* Nur bei Rollo-Sektionen: Eine Gruppe steuert man über ihre eigene
+                Karte, ein zweiter Satz Knöpfe darüber wäre doppelt. */}
+            {section.kind === 'shades' && section.data.length > 1 && (
+              <BulkActions shades={section.data} scopeLabel={section.title} />
+            )}
+          </View>
         )}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: colors.muted }]}>Keine Rollos gefunden.</Text>

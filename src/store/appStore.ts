@@ -18,6 +18,8 @@ import {
 } from '@/models/index';
 import { ConnectionStatus } from '@/socket/connection';
 
+import { MAX_SCENES, Scene } from './scenes';
+
 export interface DeviceInfo {
   serverId: string;
   version: string;
@@ -67,6 +69,8 @@ export interface AppState {
   host: string | null;
   connectionStatus: ConnectionStatus;
   hydrated: boolean;
+  /** Lokale Szenen, auf dem Handy gespeichert. */
+  scenes: Scene[];
   /**
    * Wann zuletzt Daten vom Gerät kamen — Socket-Event, Polling oder Discovery.
    * Trägt das Offline-Banner („Letzter Stand vor 3 Min."), deshalb persistiert:
@@ -90,6 +94,10 @@ export interface AppState {
   clearRoomAssignment(roomId: number): void;
   /** Setzt sortOrder in Listenreihenfolge — die SortOrder-Routen senden keine Events. */
   applySortOrder(kind: 'shades' | 'rooms' | 'groups', ids: number[]): void;
+  /** Lokale Szenen — die Firmware kennt keine (#26). */
+  upsertScene(scene: Scene): void;
+  deleteScene(sceneId: string): void;
+
   setMemory(memory: MemoryStatus): void;
   setWifi(wifi: WifiStrengthEvent): void;
   setEthernet(ethernet: EthernetEvent): void;
@@ -133,6 +141,7 @@ export const useAppStore = create<AppState>()(
       connectionStatus: 'offline',
       hydrated: false,
       lastStateAt: null,
+      scenes: [],
 
       setHost: (host) => set({ host }),
       setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
@@ -234,8 +243,9 @@ export const useAppStore = create<AppState>()(
           return { shadesById, groupsById };
         }),
 
-      // Die *SortOrder-Routen der Firmware setzen sortOrder nur im RAM, ohne
-      // emitState — es kommt also kein Event zurück, das die App übernehmen könnte.
+      // Die *SortOrder-Routen der Firmware senden kein emitState — es kommt also
+      // kein Event zurück, das die App übernehmen könnte. (Bis v2.4.9 speicherten
+      // sie die Reihenfolge zudem gar nicht; siehe docs/api-notes.md und #67.)
       applySortOrder: (kind, ids) =>
         set((state) => {
           if (kind === 'rooms') {
@@ -261,6 +271,23 @@ export const useAppStore = create<AppState>()(
           });
           return { shadesById };
         }),
+
+      // Nach id ersetzen, sonst anhängen — dieselbe Aktion trägt Anlegen und
+      // Umbenennen. MAX_SCENES begrenzt nur das Anlegen; ein Ersetzen geht immer.
+      upsertScene: (scene) =>
+        set((state) => {
+          const index = state.scenes.findIndex((existing) => existing.id === scene.id);
+          if (index >= 0) {
+            const scenes = [...state.scenes];
+            scenes[index] = scene;
+            return { scenes };
+          }
+          if (state.scenes.length >= MAX_SCENES) return {};
+          return { scenes: [...state.scenes, scene] };
+        }),
+
+      deleteScene: (sceneId) =>
+        set((state) => ({ scenes: state.scenes.filter((scene) => scene.id !== sceneId) })),
 
       setMemory: (memory) =>
         set((state) => ({
@@ -322,6 +349,7 @@ export const useAppStore = create<AppState>()(
         device: state.device,
         host: state.host,
         lastStateAt: state.lastStateAt,
+        scenes: state.scenes,
       }),
     }
   )

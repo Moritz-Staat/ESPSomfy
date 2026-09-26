@@ -67,7 +67,7 @@ Sämtliche **Verwaltung läuft ausschließlich über Port 80**:
 
 1. **`/shadeSortOrder`, `/roomSortOrder`, `/groupSortOrder` erwarten ein nacktes JSON-Array** (`[3,1,2]`), kein Objekt. `sortOrder` wird in Array-Reihenfolge vergeben, beginnend bei 0. Übersprungen werden die Platzhalter-Ids (`roomId 0`, `shadeId 255`, `groupId 255`).
 2. **Dieselben Routen antworten bei falscher HTTP-Methode mit HTTP 201** und `{"status":"ERROR","desc":"Invalid HTTP Method: "}` — ein Erfolgsstatus mit Fehlerinhalt. Der Client wertet deshalb bei jeder Antwort zusätzlich das `status`-Feld aus und wirft bei `ERROR` einen `ApiError`, unabhängig vom HTTP-Code.
-3. **Die SortOrder-Handler rufen kein `save()` auf**, anders als `/saveRoom` und `/saveShade`. Die Reihenfolge steht damit zunächst nur im RAM. Ob sie einen Neustart übersteht, ist am Gerät zu prüfen.
+3. **Die SortOrder-Handler rufen kein `save()` auf**, anders als `/saveRoom` und `/saveShade` (`Web.cpp:648`, `710`, `771`, `1423`, `1461`, `1502`). Die Reihenfolge steht damit nur im RAM und ist nach einem Neustart weg. Der Fehler wirkt sporadisch, weil `SomfyShadeController::commit()` (`Somfy.cpp:623`) die **gesamte** Konfiguration schreibt: Jede spätere, unabhängige Speicheraktion — umbenennen, Raum zuweisen, Favorit setzen — nimmt die hängende Sortierung als Nebenwirkung mit. Wer nach dem Sortieren noch etwas anderes ändert, merkt nichts; wer nur sortiert und neu startet, verliert die Reihenfolge. `isDirty` wird ebenfalls nicht gesetzt, es greift also auch kein periodischer Commit. Betrifft das mitgelieferte Web-UI genauso. Behoben im Fork `Moritz-Staat/ESPSomfy-RTS` ab **v2.4.10**; siehe App-Issue #67. Gegen unveränderte Firmware bleibt die Sortierung flüchtig — die App kann daran nichts ändern.
 4. **`/deleteShade` antwortet mit HTTP 400** (nicht 500), wenn das Rollo Mitglied einer Gruppe ist: `This shade is a member of a group and cannot be deleted.`
 5. **`/linkToGroup` und `/unlinkFromGroup` behandeln `shadeId 0` als „nicht angegeben"** und lehnen mit HTTP 500 ab. Ein Rollo mit Id 0 lässt sich über diese Routen nicht zuordnen.
 6. **`/addRoom` und `/addGroup` antworten mit dem angelegten Objekt**, inklusive der vergebenen Id. Bei Überschreitung von `SOMFY_MAX_ROOMS` beziehungsweise `SOMFY_MAX_GROUPS` kommt HTTP 500.
@@ -107,6 +107,28 @@ Es gibt also **keinen eigenen Löschbefehl**: Gelöscht wird, indem die aktuelle
 - **`pos` außerhalb 0–100 bewirkt nichts.** Der Web-Handler prüft `if(pos >= 0 && pos <= 100)` vor dem Aufruf — die Antwort kommt trotzdem, weil die Zeilen darunter nicht geklammert sind (`Web.cpp:1552`).
 - **Bleibt `tilt` weg, setzt die Firmware `tilt = shade->myPos`** — den Wert der *Fahr*achse (`Web.cpp:1550`). Das sieht nach einem Versehen aus (gemeint war vermutlich `myTiltPos`). Bei Rollos mit Lamellen deshalb immer beide Werte senden.
 - Bei `tiltType == none` setzt die Firmware `tilt` selbst auf -1; dort genügt `{shadeId, pos}`.
+
+## `Stop` geht als `My` auf die Funkstrecke
+
+RTS hat keinen eigenen Stopp-Code — der Taster der Telis trägt beide Bedeutungen. Entsprechend schreibt `somfy_frame_t::encode80BitFrame` den Befehl um:
+
+```cpp
+case somfy_commands::Stop:
+  if(repeat == 0) frame[1] = (static_cast<byte>(somfy_commands::My) << 4) | (frame[1] & 0x0F);
+```
+
+(`Somfy.cpp:290`) Auf dem Motor kommt also **My** an. Das bedeutet:
+
+| Ausgangslage des Motors | Wirkung von `Stop` |
+|---|---|
+| fährt | hält an — wie erwartet |
+| steht still | **fährt zur Favoritenposition** |
+
+Intern verbucht die Firmware `Stop` dagegen sauber als Halt (`p_target(currentPos)`, `Somfy.cpp:2539`) — bei einem stehenden Rollo weichen ihre Annahme und das Verhalten des Motors danach also auseinander.
+
+**Folge für die App:** Ein „Alle stopp" darf nur an Rollos gehen, die tatsächlich fahren. Sonst setzt der Stopp-Knopf stehende Rollos in Bewegung. `BulkActions` filtert deshalb über `isMoving`, bevor der Plan gebaut wird, und meldet „Kein Rollo fährt gerade", wenn nichts übrig bleibt.
+
+Nicht zu verwechseln mit `Toggle`, das die Umschaltlogik ausdrücklich selbst trägt (`Somfy.cpp:2530`): steht unten → hoch, steht oben → runter, steht mittig → entgegen der letzten Bewegung.
 
 ## Diagnose: Telemetrie und Wartungsrouten
 
