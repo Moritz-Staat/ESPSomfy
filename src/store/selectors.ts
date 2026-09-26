@@ -11,6 +11,13 @@ export interface RoomSection {
 
 export const UNASSIGNED_ROOM_ID = 0;
 
+// Nur „offline" sperrt die Steuerung. „polling" heißt, dass der Socket weg ist,
+// die REST-Schnittstelle aber antwortet — Befehle kommen dann weiterhin an, nur
+// die Rückmeldung hinkt 10 s nach. Das ist kein Grund, die Knöpfe zu sperren.
+export function selectIsOffline(state: Pick<AppState, 'connectionStatus'>): boolean {
+  return state.connectionStatus === 'offline';
+}
+
 // Nach Raum gruppiert, Räume und Rollos jeweils nach sortOrder;
 // Rollos ohne Raum (roomId 0 oder unbekannter Raum) landen in „Ohne Raum" am Ende.
 export function selectRoomSections(state: Pick<AppState, 'shadesById' | 'roomsById'>): RoomSection[] {

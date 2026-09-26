@@ -67,6 +67,13 @@ export interface AppState {
   host: string | null;
   connectionStatus: ConnectionStatus;
   hydrated: boolean;
+  /**
+   * Wann zuletzt Daten vom Gerät kamen — Socket-Event, Polling oder Discovery.
+   * Trägt das Offline-Banner („Letzter Stand vor 3 Min."), deshalb persistiert:
+   * nach einem Neustart ist der Bestand aus dem Speicher womöglich Stunden alt,
+   * und genau das soll die App sagen statt zu schweigen.
+   */
+  lastStateAt: number | null;
 
   setHost(host: string | null): void;
   setConnectionStatus(status: ConnectionStatus): void;
@@ -109,6 +116,11 @@ function mergeById<T, P extends Partial<T>>(
   return { ...map, [id]: { ...(existing ?? {}), ...cleaned } as T };
 }
 
+// Jede Nachricht vom Gerät — Event, Polling oder Discovery — setzt den Zeitstempel.
+// Rein lokale Änderungen (Optimistic Update, Sortierung, Raumzuordnung nach dem
+// Löschen) gelten bewusst nicht als Lebenszeichen.
+const heard = () => ({ lastStateAt: Date.now() });
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -120,6 +132,7 @@ export const useAppStore = create<AppState>()(
       host: null,
       connectionStatus: 'offline',
       hydrated: false,
+      lastStateAt: null,
 
       setHost: (host) => set({ host }),
       setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
@@ -149,6 +162,7 @@ export const useAppStore = create<AppState>()(
             ethernet: get().device?.ethernet,
           },
           hydrated: true,
+          ...heard(),
         });
       },
 
@@ -157,7 +171,7 @@ export const useAppStore = create<AppState>()(
         set((state) => {
           let map = state.shadesById;
           for (const shade of shades) map = mergeById(map, shade.shadeId, shade);
-          return { shadesById: map };
+          return { shadesById: map, ...heard() };
         }),
 
       applyShadeState: (patch) => {
@@ -167,31 +181,40 @@ export const useAppStore = create<AppState>()(
           clearTimeout(pending.timer);
           pendingRollbacks.delete(patch.shadeId);
         }
-        set((state) => ({ shadesById: mergeById(state.shadesById, patch.shadeId, patch) }));
+        set((state) => ({
+          shadesById: mergeById(state.shadesById, patch.shadeId, patch),
+          ...heard(),
+        }));
       },
 
       removeShade: (shadeId) =>
         set((state) => {
           const { [shadeId]: _removed, ...rest } = state.shadesById;
-          return { shadesById: rest };
+          return { shadesById: rest, ...heard() };
         }),
 
       applyGroupState: (patch) =>
-        set((state) => ({ groupsById: mergeById(state.groupsById, patch.groupId, patch) })),
+        set((state) => ({
+          groupsById: mergeById(state.groupsById, patch.groupId, patch),
+          ...heard(),
+        })),
 
       removeGroup: (groupId) =>
         set((state) => {
           const { [groupId]: _removed, ...rest } = state.groupsById;
-          return { groupsById: rest };
+          return { groupsById: rest, ...heard() };
         }),
 
       applyRoomState: (patch) =>
-        set((state) => ({ roomsById: mergeById(state.roomsById, patch.roomId, patch) })),
+        set((state) => ({
+          roomsById: mergeById(state.roomsById, patch.roomId, patch),
+          ...heard(),
+        })),
 
       removeRoom: (roomId) =>
         set((state) => {
           const { [roomId]: _removed, ...rest } = state.roomsById;
-          return { roomsById: rest };
+          return { roomsById: rest, ...heard() };
         }),
 
       // Die Firmware setzt beim Löschen eines Raums die roomId der betroffenen
@@ -240,7 +263,10 @@ export const useAppStore = create<AppState>()(
         }),
 
       setMemory: (memory) =>
-        set((state) => (state.device ? { device: { ...state.device, memory } } : {})),
+        set((state) => ({
+          ...(state.device ? { device: { ...state.device, memory } } : {}),
+          ...heard(),
+        })),
 
       setWifi: (wifi) =>
         set((state) => {
@@ -251,12 +277,15 @@ export const useAppStore = create<AppState>()(
             wifiHistory.splice(0, wifiHistory.length - WIFI_HISTORY_SIZE);
           }
           return state.device
-            ? { device: { ...state.device, wifi }, wifiHistory }
-            : { wifiHistory };
+            ? { device: { ...state.device, wifi }, wifiHistory, ...heard() }
+            : { wifiHistory, ...heard() };
         }),
 
       setEthernet: (ethernet) =>
-        set((state) => (state.device ? { device: { ...state.device, ethernet } } : {})),
+        set((state) => ({
+          ...(state.device ? { device: { ...state.device, ethernet } } : {}),
+          ...heard(),
+        })),
 
       applyOptimistic: (shadeId, change) => {
         const shade = get().shadesById[shadeId];
@@ -292,6 +321,7 @@ export const useAppStore = create<AppState>()(
         roomsById: state.roomsById,
         device: state.device,
         host: state.host,
+        lastStateAt: state.lastStateAt,
       }),
     }
   )

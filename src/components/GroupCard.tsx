@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { LayoutAnimation, Platform, Pressable, StyleSheet, Text, UIManager, View } from 'react-native';
 
 import { ShadeCard } from '@/components/ShadeCard';
-import { Button } from '@/components/ui/index';
+import { Button, useToast } from '@/components/ui/index';
 import { SomfyCommand } from '@/models/index';
-import { GroupSummary } from '@/store/selectors';
+import { useAppStore } from '@/store/appStore';
+import { GroupSummary, selectIsOffline } from '@/store/selectors';
 import { sendGroupCommand } from '@/store/service';
 import { flat, font, radius, spacing, type } from '@/theme/index';
 import { useTheme } from '@/theme/ThemeContext';
@@ -25,13 +26,22 @@ export function GroupCard({ summary }: { summary: GroupSummary }) {
   const [expanded, setExpanded] = useState(false);
   const [sent, setSent] = useState(false);
   const sentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toast = useToast();
+  const offline = useAppStore(selectIsOffline);
 
   useEffect(() => () => {
     if (sentTimer.current) clearTimeout(sentTimer.current);
   }, []);
 
+  // Scheitert der Gruppenbefehl, muss auch „Befehl gesendet" wieder weg — sonst
+  // behauptet die Karte einen Erfolg, den es nicht gab.
   const send = (command: SomfyCommand) => {
-    sendGroupCommand(group.groupId, command).catch(() => {});
+    sendGroupCommand(group.groupId, command).catch((err: unknown) => {
+      toast.showError(err);
+      if (sentTimer.current) clearTimeout(sentTimer.current);
+      sentTimer.current = null;
+      setSent(false);
+    });
     setSent(true);
     if (sentTimer.current) clearTimeout(sentTimer.current);
     sentTimer.current = setTimeout(() => setSent(false), SENT_NOTICE_MS);
@@ -64,9 +74,9 @@ export function GroupCard({ summary }: { summary: GroupSummary }) {
           </Text>
         </Pressable>
         <View style={styles.buttons}>
-          <Button label="Hoch" compact onPress={() => send('Up')} />
-          <Button label="My" compact onPress={() => send('My')} />
-          <Button label="Runter" compact onPress={() => send('Down')} />
+          <Button label="Hoch" compact onPress={() => send('Up')} disabled={offline} />
+          <Button label="My" compact onPress={() => send('My')} disabled={offline} />
+          <Button label="Runter" compact onPress={() => send('Down')} disabled={offline} />
         </View>
       </View>
 
