@@ -89,6 +89,7 @@ src/theme/           Design-Tokens
 mock-server/         Node-Mock für Entwicklung ohne Hardware
 docs/api-samples/    API-Antworten des Geräts (Firmware v2.4.6, anonymisiert)
 docs/api-notes.md    Verifizierte Abweichungen Firmware-Doku ↔ echtes Gerät
+docs/2026-09-26-testplan-am-geraet.md  Offene Prüfungen am echten Gerät
 docs/API-CLIENT-NOTES.en.md  Dieselben Befunde auf Englisch, für andere Client-Entwickler
 ```
 
