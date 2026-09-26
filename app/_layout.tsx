@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { ErrorScreen, ToastProvider } from '@/components/ui';
 import { font } from '@/theme/index';
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 
@@ -34,6 +35,10 @@ function ThemedStack() {
   );
 }
 
+// Expo Router zieht diesen benannten Export als Auffangseite für Renderfehler
+// unterhalb dieses Layouts heran und liefert `retry`, das die Route neu montiert.
+export { ErrorScreen as ErrorBoundary };
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -53,7 +58,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <ThemedStack />
+      {/* Der Toast liegt über der Navigation, damit eine Meldung einen
+          Screenwechsel übersteht — ein Befehl darf unterwegs scheitern. */}
+      <ToastProvider>
+        <ThemedStack />
+      </ToastProvider>
     </ThemeProvider>
   );
 }

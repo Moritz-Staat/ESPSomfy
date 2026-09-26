@@ -15,6 +15,8 @@ export interface SliderProps {
   on?: CardStyle;
   width: number;
   accessibilityLabel: string;
+  /** Sperrt die Geste — im Offline-Zustand soll sich nichts ziehen lassen. */
+  disabled?: boolean;
   style?: ViewStyle;
 }
 
@@ -27,6 +29,7 @@ export function Slider({
   on,
   width,
   accessibilityLabel,
+  disabled = false,
   style,
 }: SliderProps) {
   const [dragValue, setDragValue] = useState<number | null>(null);
@@ -34,10 +37,14 @@ export function Slider({
   const valueRef = useRef(value);
   const onCommitRef = useRef(onCommit);
   const widthRef = useRef(width);
+  // Der PanResponder entsteht einmalig; die Sperre muss er deshalb über eine Ref
+  // lesen, sonst bliebe der Slider mit dem Wert vom ersten Render bedienbar.
+  const disabledRef = useRef(disabled);
   useEffect(() => {
     valueRef.current = value;
     onCommitRef.current = onCommit;
     widthRef.current = width;
+    disabledRef.current = disabled;
   });
 
   // PanResponder ist ein imperatives API: die einmal erzeugten Handler leben über
@@ -48,8 +55,8 @@ export function Slider({
     const fromGesture = (dx: number) =>
       clamp(startValue.current + (dx / (widthRef.current - THUMB_SIZE)) * 100);
     return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => !disabledRef.current,
+      onMoveShouldSetPanResponder: () => !disabledRef.current,
       onPanResponderGrant: () => {
         startValue.current = valueRef.current;
         setDragValue(valueRef.current);
@@ -74,10 +81,16 @@ export function Slider({
 
   return (
     <View
-      style={[styles.track, { width, backgroundColor: trackBg }, style]}
+      style={[
+        styles.track,
+        { width, backgroundColor: trackBg },
+        disabled && styles.inactive,
+        style,
+      ]}
       accessibilityRole="adjustable"
       accessibilityLabel={accessibilityLabel}
       accessibilityValue={{ min: 0, max: 100, now: shown }}
+      accessibilityState={{ disabled }}
       {...responder.panHandlers}
     >
       <View style={[styles.fill, { backgroundColor: fillBg, width: left + THUMB_SIZE / 2 }]} />
@@ -112,4 +125,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   thumbText: { fontFamily: font.semibold, fontSize: 12 },
+  inactive: { opacity: 0.5 },
 });

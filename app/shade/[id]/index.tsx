@@ -7,9 +7,10 @@ import { FavoriteSheet } from '@/components/FavoriteSheet';
 import { PositionSlider } from '@/components/PositionSlider';
 import { ShadeGraphic } from '@/components/ShadeGraphic';
 import { TiltControl } from '@/components/TiltControl';
-import { Button } from '@/components/ui/index';
+import { Button, useToast } from '@/components/ui/index';
 import { hasFavorite, isMoving, ShadeType, TiltType } from '@/models/index';
 import { useAppStore } from '@/store/appStore';
+import { selectIsOffline } from '@/store/selectors';
 import { sendShadeCommand, sendShadeTarget, sendTiltTarget } from '@/store/service';
 import { detailStyleFor, font, spacing } from '@/theme/index';
 import { useTheme } from '@/theme/ThemeContext';
@@ -17,8 +18,10 @@ import { useTheme } from '@/theme/ThemeContext';
 export default function ShadeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const shade = useAppStore((s) => s.shadesById[Number(id)]);
+  const offline = useAppStore(selectIsOffline);
   const theme = useTheme();
   const router = useRouter();
+  const toast = useToast();
   const [favoriteOpen, setFavoriteOpen] = useState(false);
 
   if (!shade) {
@@ -45,7 +48,7 @@ export default function ShadeDetail() {
   const card = detailStyleFor(theme, shade.shadeId);
 
   const send = (command: Parameters<typeof sendShadeCommand>[1]) => {
-    sendShadeCommand(shade.shadeId, command).catch(() => {});
+    sendShadeCommand(shade.shadeId, command).catch((err: unknown) => toast.showError(err));
   };
 
   return (
@@ -98,8 +101,9 @@ export default function ShadeDetail() {
             on={card}
             // Nur beim Loslassen senden — kontinuierliches Senden flutet den ESP32.
             onCommit={(value) => {
-              sendShadeTarget(shade.shadeId, value).catch(() => {});
+              sendShadeTarget(shade.shadeId, value).catch((err: unknown) => toast.showError(err));
             }}
+            disabled={offline}
           />
         )}
 
@@ -108,26 +112,28 @@ export default function ShadeDetail() {
             value={shade.tiltPosition ?? 0}
             on={card}
             onCommit={(value) => {
-              sendTiltTarget(shade.shadeId, value).catch(() => {});
+              sendTiltTarget(shade.shadeId, value).catch((err: unknown) => toast.showError(err));
             }}
+            disabled={offline}
           />
         )}
 
         <View style={styles.buttons}>
           {isDry ? (
-            <Button label="Schalten" card={card} onPress={() => send('Toggle')} />
+            <Button label="Schalten" card={card} onPress={() => send('Toggle')} disabled={offline} />
           ) : (
             <>
               {/* Bei tiltonly steuern diese Befehle die Lamellen: die Firmware
                   lenkt Up/Down/My dort intern auf das Tilt-Ziel um. */}
-              <Button label="Hoch" card={card} onPress={() => send('Up')} />
+              <Button label="Hoch" card={card} onPress={() => send('Up')} disabled={offline} />
               <Button
                 label={myLabel}
                 card={card}
                 onPress={() => send('My')}
                 onLongPress={() => setFavoriteOpen(true)}
+                disabled={offline}
               />
-              <Button label="Runter" card={card} onPress={() => send('Down')} />
+              <Button label="Runter" card={card} onPress={() => send('Down')} disabled={offline} />
             </>
           )}
         </View>

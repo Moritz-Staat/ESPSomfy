@@ -17,12 +17,14 @@ interface Props {
   onCommit: (value: number) => void;
   /** Karte, auf der das Element liegt (Detailansicht). */
   on: CardStyle;
+  /** Sperrt den Regler (Offline-Zustand). */
+  disabled?: boolean;
 }
 
 // Tilt als eigene Achse: waagerechter Verlauf, damit er sich vom senkrechten
 // Positions-Slider unterscheidet, und die Lamellen darüber als Anzeige —
 // ein zweiter Balken wäre von der Fahrposition nicht zu unterscheiden.
-export function TiltControl({ value, onCommit, on }: Props) {
+export function TiltControl({ value, onCommit, on, disabled = false }: Props) {
   // 100 % = geschlossen = Lamelle voll zum Betrachter (0°).
   const angle = MAX_ANGLE * (1 - Math.max(0, Math.min(100, value)) / 100);
 
@@ -53,6 +55,7 @@ export function TiltControl({ value, onCommit, on }: Props) {
         on={on}
         width={TRACK_WIDTH}
         accessibilityLabel="Lamellenwinkel"
+        disabled={disabled}
         style={styles.slider}
       />
       <View style={styles.scale}>

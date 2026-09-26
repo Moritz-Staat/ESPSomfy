@@ -15,17 +15,22 @@ interface Props {
   // Gesetzt, wenn der Slider auf einer Farbkarte liegt (Detailansicht):
   // Track/Fill Ton-in-Ton aus der Textfarbe, Thumb wie die Karten-Buttons.
   on?: CardStyle;
+  // Sperrt die Geste — im Offline-Zustand soll sich nichts ziehen lassen.
+  disabled?: boolean;
 }
 
-export function PositionSlider({ value, onCommit, on }: Props) {
+export function PositionSlider({ value, onCommit, on, disabled = false }: Props) {
   const [dragValue, setDragValue] = useState<number | null>(null);
   const startValue = useRef(0);
   // Refs, damit der einmalig erzeugte PanResponder aktuelle Props sieht.
   const valueRef = useRef(value);
   const onCommitRef = useRef(onCommit);
+  // Einmalig erzeugter PanResponder: die Sperre kommt über eine Ref herein.
+  const disabledRef = useRef(disabled);
   useEffect(() => {
     valueRef.current = value;
     onCommitRef.current = onCommit;
+    disabledRef.current = disabled;
   });
 
   // PanResponder ist ein imperatives API: die einmal erzeugten Handler leben über
@@ -35,8 +40,8 @@ export function PositionSlider({ value, onCommit, on }: Props) {
   const [responder] = useState(() => {
     const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
     return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => !disabledRef.current,
+      onMoveShouldSetPanResponder: () => !disabledRef.current,
       onPanResponderGrant: () => {
         startValue.current = valueRef.current;
         setDragValue(valueRef.current);
@@ -71,7 +76,14 @@ export function PositionSlider({ value, onCommit, on }: Props) {
   return (
     <View style={styles.container}>
       <Text style={labelStyle}>0 % — offen</Text>
-      <View style={trackStyle} {...responder.panHandlers}>
+      <View
+        style={[...trackStyle, disabled && styles.inactive]}
+        accessibilityRole="adjustable"
+        accessibilityLabel="Fahrposition"
+        accessibilityValue={{ min: 0, max: 100, now: shown }}
+        accessibilityState={{ disabled }}
+        {...responder.panHandlers}
+      >
         <View style={[...fillStyle, { height: top + THUMB_SIZE / 2 }]} />
         <View style={[...thumbStyle, { top }]}>
           <Text style={thumbTextStyle}>{shown}</Text>
@@ -109,4 +121,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   thumbText: { fontFamily: font.semibold, fontSize: 12 },
+  inactive: { opacity: 0.5 },
 });
